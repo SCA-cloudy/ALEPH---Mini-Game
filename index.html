@@ -1,0 +1,2270 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>대천사 심판: 30초 보스 레이드</title>
+<style>
+  :root{
+    --bg:#07080f; --panel:rgba(22,26,45,0.72); --panel2:#232a4d; --line:#3a3f6f;
+    --text:#e8ebff; --dim:#9aa0c8; --accent:#5ee1c0; --danger:#ff5d6c;
+    --warn:#ffcc4d; --hp:#ff5d6c; --xp:#5ee1c0; --boss:#9b6bd6; --gold:#e8c98a;
+    /* 각진 세리프 대신, 눈이 편하고 둥글둥글한 인상의 고딕 계열로 통일(맑은 고딕을 최우선) */
+    --font-display:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",-apple-system,
+      BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --font-body:"Malgun Gothic",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",
+      "Noto Sans KR","Segoe UI",sans-serif;
+    --font-mono:ui-monospace,Menlo,Consolas,"SF Mono","Courier New",monospace;
+  }
+  /* 라이트 모드: 페이지 바깥 배경/패널 색상만 밝게 전환(캔버스 속 게임 배경은 세계관 유지를 위해 그대로 둠) */
+  :root[data-theme="light"]{
+    --bg:#eef0fb; --panel:rgba(255,255,255,0.78); --panel2:#e4e6f6; --line:#c9cce6;
+    --text:#20223a; --dim:#5b5f82; --accent:#1a9a80; --danger:#c9384a;
+    --warn:#96650a; --hp:#c9384a; --xp:#1a9a80; --boss:#6a4bb0; --gold:#9c7317;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;color:var(--text);font-family:var(--font-body);overflow-x:hidden;}
+  body{
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    padding:20px 12px 14px;gap:10px;
+    background-color:var(--bg);
+    background-image:
+      radial-gradient(1px 1px at 12% 22%, rgba(200,215,255,0.55) 0, transparent 55%),
+      radial-gradient(1px 1px at 78% 15%, rgba(200,215,255,0.4) 0, transparent 55%),
+      radial-gradient(1.5px 1.5px at 34% 68%, rgba(200,215,255,0.35) 0, transparent 55%),
+      radial-gradient(1px 1px at 62% 82%, rgba(200,215,255,0.4) 0, transparent 55%),
+      radial-gradient(1px 1px at 90% 55%, rgba(200,215,255,0.3) 0, transparent 55%),
+      radial-gradient(1px 1px at 8% 85%, rgba(200,215,255,0.3) 0, transparent 55%),
+      radial-gradient(ellipse 900px 500px at 50% -8%, rgba(94,140,225,0.16), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 100%, rgba(150,90,230,0.10), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 0% 100%, rgba(94,225,192,0.07), transparent 60%);
+    background-attachment:fixed;
+  }
+  :root[data-theme="light"] body{
+    background-image:
+      radial-gradient(ellipse 900px 500px at 50% -8%, rgba(120,150,230,0.14), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 100%, rgba(160,110,220,0.10), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 0% 100%, rgba(40,170,140,0.08), transparent 60%);
+  }
+  h1{font-family:var(--font-display);font-size:23px;font-weight:600;letter-spacing:0.4px;
+    margin:2px 0 0;text-align:center;color:#f3f0ff;
+    text-shadow:0 0 18px rgba(150,170,255,0.45),0 0 2px rgba(255,255,255,0.3);}
+  :root[data-theme="light"] h1{color:#20223a;text-shadow:0 0 12px rgba(120,150,230,0.25);}
+  h1::before,h1::after{content:"✦";color:var(--gold);font-size:12px;
+    vertical-align:middle;margin:0 12px;opacity:0.8;}
+  .sub{color:var(--dim);font-size:12.5px;text-align:center;margin-top:2px;letter-spacing:0.2px;}
+  #app{width:100%;max-width:1120px;display:flex;flex-direction:column;gap:10px;position:relative;}
+  #theme-toggle{position:absolute;top:0;right:0;padding:6px 13px;font-size:11px;border-radius:20px;}
+  .layout{display:flex;gap:12px;width:100%;flex-wrap:wrap;align-items:flex-start;
+    justify-content:center;}
+  .panel{background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid var(--line);border-top:1px solid rgba(232,201,138,0.35);
+    border-radius:10px;padding:12px 14px;font-size:12.5px;line-height:1.65;
+    box-shadow:0 8px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03);}
+  .panel h2{font-family:var(--font-display);font-size:13px;margin:0 0 7px;
+    color:var(--gold);letter-spacing:0.2px;font-weight:600;
+    border-bottom:1px solid rgba(232,201,138,0.22);padding-bottom:4px;}
+  .info-panel{flex:0 0 220px;min-width:200px;max-width:260px;}
+  .controls-panel{flex:0 0 200px;min-width:180px;max-width:240px;}
+  .game-area{flex:1 1 640px;min-width:300px;max-width:720px;display:flex;
+    flex-direction:column;gap:8px;align-items:center;}
+  .hud{width:100%;display:flex;flex-wrap:wrap;gap:6px;font-size:12px;
+    font-family:var(--font-mono);
+    background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid var(--line);border-top:1px solid rgba(232,201,138,0.35);
+    border-radius:10px;padding:9px 12px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.3);}
+  .hud .stat{display:flex;align-items:center;gap:6px;min-width:120px;flex:1 1 120px;}
+  .bar{flex:1;height:11px;background:#05060c;border:1px solid var(--line);
+    border-radius:6px;overflow:hidden;position:relative;box-shadow:inset 0 1px 3px rgba(0,0,0,0.6);}
+  .bar > i{display:block;height:100%;width:100%;transform-origin:left;
+    transition:transform .12s linear;}
+  .bar.hp > i{background:linear-gradient(180deg,#ff8a93,var(--hp));box-shadow:0 0 8px rgba(255,93,108,0.6);}
+  .bar.xp > i{background:linear-gradient(180deg,#8ff3d9,var(--xp));box-shadow:0 0 8px rgba(94,225,192,0.6);}
+  .bar.boss > i{background:linear-gradient(180deg,#c3a4ff,var(--boss));box-shadow:0 0 8px rgba(155,107,214,0.6);}
+  .canvas-wrap{position:relative;width:100%;max-width:640px;aspect-ratio:960/600;
+    background:#05060c;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+    box-shadow:0 10px 34px rgba(0,0,0,0.5), 0 0 0 1px rgba(150,170,255,0.08);}
+  canvas{display:block;width:100%;height:100%;image-rendering:pixelated;}
+  #overlay{position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:10px;text-align:center;
+    background:radial-gradient(ellipse at 50% 40%, rgba(30,36,64,0.92), rgba(4,5,10,0.94));
+    padding:16px;}
+  #overlay.hidden{display:none;}
+  /* 오버레이는 캔버스 위 어두운 배경에 항상 고정되어 뜨므로(페이지 테마와 무관), 아래 색은
+     라이트 모드에서도 절대 var(--text)/var(--dim) 등으로 바꾸지 않고 고정값을 쓴다 */
+  #overlay h3{font-family:var(--font-display);margin:0;font-size:22px;letter-spacing:0.3px;color:#f3f0ff;
+    text-shadow:0 0 16px rgba(150,170,255,0.4);}
+  #overlay h3.success{color:#bff5e0;text-shadow:0 0 22px rgba(94,225,192,0.65);}
+  #overlay h3.fail{color:#ffc2c8;text-shadow:0 0 22px rgba(255,93,109,0.55);}
+  #overlay h3.success::before,#overlay h3.success::after{content:"✦";color:#5ee1c0;
+    font-size:13px;vertical-align:middle;margin:0 10px;opacity:0.85;}
+  #overlay h3.fail::before,#overlay h3.fail::after{content:"✧";color:#ff5d6c;
+    font-size:13px;vertical-align:middle;margin:0 10px;opacity:0.75;}
+  #overlay p{margin:0;color:#9aa0c8;font-size:12px;max-width:340px;}
+  #overlay-results{display:flex;flex-direction:column;align-items:center;gap:9px;
+    width:100%;margin:2px 0;}
+  #overlay-results.hidden{display:none;}
+  .result-badge{font-family:var(--font-display);font-size:11.5px;letter-spacing:0.8px;
+    color:#241c05;background:linear-gradient(180deg,#ffe9a8,var(--gold));
+    padding:3px 14px;border-radius:20px;box-shadow:0 0 16px rgba(232,201,138,0.6);
+    animation:badgePulse 1.3s ease-in-out infinite;}
+  .result-badge.hidden{display:none;}
+  @keyframes badgePulse{0%,100%{transform:scale(1);}50%{transform:scale(1.07);}}
+  .result-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;width:100%;max-width:320px;}
+  .result-cell{background:rgba(10,12,24,0.45);border:1px solid rgba(150,160,220,0.32);border-radius:9px;
+    padding:8px 6px 7px;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  .result-cell.highlight{border-color:#e8c98a;box-shadow:0 0 14px rgba(232,201,138,0.25);}
+  .result-label{font-size:9.5px;color:#9aa0c8;letter-spacing:0.6px;}
+  .result-value{font-family:var(--font-mono);font-size:19px;font-weight:bold;color:#f3f0ff;}
+  .result-cell.highlight .result-value{color:#e8c98a;text-shadow:0 0 10px rgba(232,201,138,0.5);}
+  button{font-family:var(--font-body);font-size:12.5px;background:var(--panel2);
+    color:var(--text);border:1px solid var(--line);border-radius:7px;
+    padding:9px 14px;cursor:pointer;transition:all .15s ease;}
+  button:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 12px rgba(94,225,192,0.25);
+    transform:translateY(-1px);}
+  button.primary{background:linear-gradient(180deg,#7cf0d6,var(--accent));color:#05060c;
+    border-color:var(--accent);font-weight:bold;box-shadow:0 4px 16px rgba(94,225,192,0.3);}
+  button.primary:hover{color:#05060c;}
+  .diff-btn{flex:1;padding:9px 4px;}
+  .diff-btn.active{background:linear-gradient(180deg,#7cf0d6,var(--accent));color:#05060c;
+    border-color:var(--accent);font-weight:bold;box-shadow:0 4px 14px rgba(94,225,192,0.3);}
+  .toggles label{display:flex;align-items:center;gap:6px;margin:7px 0;
+    cursor:pointer;}
+  .status-tag{display:inline-block;background:rgba(42,47,82,0.85);border:1px solid var(--line);
+    border-radius:4px;padding:2px 7px;font-size:10px;color:var(--warn);
+    font-family:var(--font-mono);}
+  details.test-tools{width:100%;background:var(--panel);backdrop-filter:blur(10px);
+    border:1px solid var(--line);border-radius:10px;padding:9px 13px;font-size:12px;}
+  details.test-tools summary{cursor:pointer;color:var(--dim);}
+  .test-tools table{width:100%;border-collapse:collapse;margin-top:8px;font-size:11px;
+    font-family:var(--font-mono);}
+  .test-tools th,.test-tools td{border:1px solid var(--line);padding:3px 6px;
+    text-align:center;}
+  .test-tools .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0;}
+  .test-tools input[type=number]{width:70px;background:#0a0c16;color:var(--text);
+    border:1px solid var(--line);border-radius:4px;padding:4px;font-family:var(--font-mono);}
+  .small{font-size:10.5px;color:var(--dim);}
+  footer{color:var(--dim);font-size:10px;text-align:center;margin-top:4px;opacity:0.7;}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--accent);}
+</style>
+</head>
+<body>
+<div id="app">
+  <button id="theme-toggle" type="button">라이트 모드</button>
+  <h1>대천사 심판: 30초 보스 레이드</h1>
+  <p class="sub">폭풍의 천사장이 되어, 신에 대한 의심으로 바스러지는 대천사를 30초 안에 정화하세요.</p>
+
+  <div class="layout">
+    <aside class="panel info-panel">
+      <h2>세계관</h2>
+      <div>
+        사후세계의 성소. 작은 회오리를 다스리는 순결한 <b style="color:#5ee1c0;">폭풍의 천사장</b>과, 신에 대한 회의로 신성이 오염되어
+        물의 권능마저 훔쳐 다루게 된 <b style="color:#6fd8f2;">의심하는 대천사</b>의 비극적 대립입니다.
+      </div>
+      <h2 style="margin-top:10px;">게임 규칙</h2>
+      <div>
+        30초 타이머 안에 보스를 처치하면 <b>성공</b>입니다.<br>
+        내 체력이 0이 되거나, 시간 안에 보스를 잡지 못하면 <b>실패</b>입니다.<br>
+        몹을 처치하면 경험치를 얻어 레벨업하며, 레벨업 시 공격력·사거리가 오릅니다.<br>
+        10초·20초 시점에 3초간 이동속도 둔화 효과가 발생합니다.
+      </div>
+      <h2 style="margin-top:10px;">보스 페이즈 (체력 기준, 자동 진행)</h2>
+      <div>
+        <b>1페이즈(100~60%) 고요한 성소</b>: 전장 전체 이동 가능, 물보라 탄막<br>
+        <b>2페이즈(60~20%) 오염과 균열</b>: 바닥 균열 구역 등장(닿으면 피해+감속), 균열의 궤적 추가<br>
+        <b>3페이즈(20%↓) 완전 붕괴</b>: 보스를 중심으로 한 좁은 안전 구역 밖은 붕괴(진입 불가) — 안전 구역이 보스를 따라 계속 움직이므로 보스에게 끌려다니듯 붙어 있어야 합니다. 탄막 밀도도 최대(광폭화)
+      </div>
+      <h2 style="margin-top:10px;">자동 발동 스킬</h2>
+      <div>
+        공격은 모두 자동입니다. 이동으로 거리를 조절해 유도하세요.<br>
+        <b>천공의 구체</b>: 근처 적에게 지속 자동 공격<br>
+        <b>폭풍의 소용돌이</b>: 9초마다 주변 몹을 끌어당겨 광역 타격<br>
+        <b>뇌전의 성역</b>: 체력이 30% 이하로 처음 떨어지면 3초간 피해 60% 경감
+      </div>
+      <h2 style="margin-top:10px;">조작법</h2>
+      <div>
+        이동: <b>WASD</b> 또는 <b>방향키</b><br>
+        공격: 자동 (적과 가까이 있으면 자동 발동)<br>
+        일시정지: <b>P</b> 또는 <b>ESC</b>, 또는 버튼
+      </div>
+    </aside>
+
+    <div class="game-area">
+      <div class="hud">
+        <div class="stat">⏱ 남은시간 <b id="hud-time">30.0</b>초</div>
+        <div class="stat">처치 <b id="hud-kills">0</b></div>
+        <div class="stat">최고기록 <b id="hud-best">0</b></div>
+      </div>
+      <div class="hud">
+        <div class="stat">HP<div class="bar hp"><i id="hp-bar"></i></div></div>
+        <div class="stat">LV <b id="hud-level">1</b><div class="bar xp"><i id="xp-bar"></i></div></div>
+      </div>
+      <div class="hud">
+        <div class="stat">보스 HP<div class="bar boss"><i id="boss-bar"></i></div></div>
+        <div class="stat" id="status-tags"></div>
+      </div>
+
+      <div class="canvas-wrap" id="canvas-wrap">
+        <canvas id="game" width="960" height="600"></canvas>
+        <div id="overlay">
+          <h3 id="overlay-title">대천사 심판</h3>
+          <p id="overlay-text">시작 버튼을 누르면 30초 보스 레이드가 시작됩니다.</p>
+          <div id="overlay-results" class="hidden">
+            <div id="overlay-badge" class="result-badge hidden">신기록 달성</div>
+            <div class="result-grid">
+              <div class="result-cell highlight">
+                <span class="result-label" id="res-time-label">클리어 타임</span>
+                <span class="result-value" id="res-time">--</span>
+              </div>
+              <div class="result-cell">
+                <span class="result-label">처치 수</span>
+                <span class="result-value" id="res-kills">--</span>
+              </div>
+              <div class="result-cell">
+                <span class="result-label">점수</span>
+                <span class="result-value" id="res-score">--</span>
+              </div>
+              <div class="result-cell">
+                <span class="result-label">최고 기록</span>
+                <span class="result-value" id="res-best">--</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="primary" id="btn-start">시작하기</button>
+            <button id="btn-resume" style="display:none;">재개하기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="panel controls-panel">
+      <h2>난이도 선택</h2>
+      <div style="display:flex;gap:6px;">
+        <button class="diff-btn" data-ms="1700" data-hpmul="1.0" data-label="쉬움">쉬움</button>
+        <button class="diff-btn" data-ms="1200" data-hpmul="1.6" data-label="보통">보통</button>
+        <button class="diff-btn" data-ms="900" data-hpmul="3.0" data-label="어려움">어려움</button>
+      </div>
+      <p class="small" id="diff-current" style="margin-top:6px;">현재: 보통 (스폰 1200ms · 보스 체력 416) · 다음 판부터 적용</p>
+      <p class="small" style="margin-top:4px;color:var(--muted,#8a93b8);">쉬움 약 15초 · 보통 약 19초 · 어려움 약 28초 내외로 클리어되도록 보스 체력을 함께 조정했습니다(20회 자동 기록 근거는 SUBMISSION.md 참고).</p>
+
+      <h2 style="margin-top:12px;">설정</h2>
+      <div class="toggles">
+        <label><input type="checkbox" id="chk-mute"> 음소거</label>
+        <label><input type="checkbox" id="chk-motion"> 움직임 줄이기</label>
+      </div>
+      <button id="btn-pause" style="width:100%;margin-top:6px;">일시정지</button>
+      <button id="btn-restart" style="width:100%;margin-top:6px;">다시하기</button>
+      <p class="small" style="margin-top:8px;">저장은 최고기록만 유지됩니다. 다시하기는 이번 판 상태만 초기화합니다.</p>
+    </aside>
+  </div>
+
+  <details class="test-tools">
+    <summary>테스트 도구 (카드3 A/B 기록 자동 생성용, 채점 대상 아님)</summary>
+    <p class="small">실제 플레이 난이도는 오른쪽 위 "난이도 선택" 패널에서 고릅니다. 아래 값은 그 A/B 비교를 자동으로 여러 번 돌려보기 위한 시뮬레이터 전용 입력입니다.</p>
+    <div class="row">
+      <label>적 스폰 간격(ms) 변경 전(A): <input type="number" id="sim-a" value="1400" step="50"></label>
+      <label>변경 후(B): <input type="number" id="sim-b" value="1000" step="50"></label>
+      <label>반복 횟수: <input type="number" id="sim-n" value="10" min="1" max="50"></label>
+    </div>
+    <div class="row">
+      <button id="btn-sim-a">A값으로 자동 10회 실행</button>
+      <button id="btn-sim-b">B값으로 자동 10회 실행</button>
+      <button id="btn-sim-clear">기록 지우기</button>
+      <button id="btn-sim-export">기록 복사(텍스트)</button>
+    </div>
+    <p class="small">자동 시뮬레이터는 단순 회피 봇이 플레이합니다. 실제 손 플레이 기록과 함께 참고용으로만 쓰세요.</p>
+    <div id="sim-results"></div>
+    <div class="row" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px;">
+      <span class="small">저장값 테스트:</span>
+      <button id="btn-save-clear">저장값 비우기</button>
+      <button id="btn-save-corrupt">저장값 손상시키기</button>
+      <button id="btn-save-show">현재 저장값 보기</button>
+    </div>
+    <pre id="save-view" class="small" style="white-space:pre-wrap;"></pre>
+  </details>
+
+  <footer>순수 HTML/CSS/JS, 외부 리소스 없음. 로그인·계정·CAPTCHA 없이 새 창에서 바로 열립니다.</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- 저장 (카드4) ---------- */
+const SAVE_KEY = "bossRushSave_v1";
+const DEFAULT_SAVE = { highScore: 0, muted: false, reducedMotion: false };
+
+function loadSave(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw === null || raw === undefined) return { ...DEFAULT_SAVE };
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return { ...DEFAULT_SAVE };
+    const highScore = Number.isFinite(parsed.highScore) ? parsed.highScore : 0;
+    const muted = typeof parsed.muted === "boolean" ? parsed.muted : false;
+    const reducedMotion = typeof parsed.reducedMotion === "boolean" ? parsed.reducedMotion : false;
+    return { highScore, muted, reducedMotion };
+  }catch(e){
+    return { ...DEFAULT_SAVE };
+  }
+}
+function persistSave(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){ /* storage unavailable: ignore */ }
+}
+let save = loadSave();
+
+/* ---------- 오디오 (8비트 신스, 외부 파일 없음) ---------- */
+let actx = null;
+function ensureAudio(){
+  if (!actx){
+    try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ actx=null; }
+  }
+  return actx;
+}
+function beep(freq, dur, type, gain){
+  if (save.muted) return;
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = type || "square";
+  osc.frequency.value = freq;
+  g.gain.value = gain==null?0.06:gain;
+  osc.connect(g); g.connect(ctx.destination);
+  const now = ctx.currentTime;
+  g.gain.setValueAtTime(g.gain.value, now);
+  g.gain.exponentialRampToValueAtTime(0.0001, now+dur);
+  osc.start(now); osc.stop(now+dur+0.02);
+}
+const sfx = {
+  hit(){ beep(220,0.07,"square",0.05); },
+  levelup(){ beep(440,0.08,"square",0.06); setTimeout(()=>beep(660,0.1,"square",0.06),70); },
+  fail(){ beep(160,0.3,"sawtooth",0.07); },
+  success(){ beep(523,0.1,"square",0.07); setTimeout(()=>beep(659,0.1,"square",0.07),90);
+             setTimeout(()=>beep(784,0.16,"square",0.07),180); },
+  phase(){ beep(330,0.12,"sawtooth",0.05); setTimeout(()=>beep(220,0.18,"sawtooth",0.05),100); },
+  whirlwind(){ beep(392,0.1,"triangle",0.05); },
+  sanctuary(){ beep(587,0.14,"square",0.06); setTimeout(()=>beep(784,0.18,"square",0.06),100); },
+};
+
+/* ---------- 캔버스/리사이즈 (카드2) ---------- */
+const canvas = document.getElementById("game");
+const ctx2d = canvas.getContext("2d");
+const W = 960, H = 600; // 논리 해상도, 실제 표시는 CSS로 반응형 스케일
+ctx2d.imageSmoothingEnabled = false;
+function resizeCanvas(){
+  // 캔버스는 CSS(aspect-ratio)로만 크기가 바뀌고, 게임 상태 변수는 건드리지 않는다.
+  // (별도 로직 불필요: width/height 속성은 논리 해상도로 고정, CSS가 화면 크기에 맞춤)
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+/* ---------- 입력 (event.repeat 무시 → 입력 1회 = 상태변화 1회, 카드2) ---------- */
+const KEYMAP = {
+  ArrowUp:"up", ArrowDown:"down", ArrowLeft:"left", ArrowRight:"right",
+  w:"up", s:"down", a:"left", d:"right",
+  W:"up", S:"down", A:"left", D:"right",
+};
+const pressed = { up:false, down:false, left:false, right:false };
+// 방향키(및 스페이스)의 브라우저 기본 동작(페이지 스크롤)을 막아야 화면이 밀리지 않는다
+const SCROLL_KEYS = new Set(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," ","Spacebar"]);
+window.addEventListener("keydown", (e)=>{
+  if (SCROLL_KEYS.has(e.key)) e.preventDefault();   // 페이지 스크롤 방지 (카드2 안정성)
+  if (e.key === "p" || e.key === "P" || e.key === "Escape"){ togglePause(); return; }
+  const dir = KEYMAP[e.key];
+  if (!dir) return;
+  if (e.repeat) return;         // OS 자동반복 이벤트는 무시
+  if (pressed[dir]) return;     // 이미 눌린 상태면 중복 반영 안함
+  pressed[dir] = true;          // 입력 1회 → 상태 1회 변경
+}, { passive:false });
+window.addEventListener("keyup", (e)=>{
+  if (SCROLL_KEYS.has(e.key)) e.preventDefault();
+  const dir = KEYMAP[e.key];
+  if (!dir) return;
+  if (!pressed[dir]) return;
+  pressed[dir] = false;
+}, { passive:false });
+window.addEventListener("blur", ()=>{ if (phase==="playing") setPaused(true, true); });
+document.addEventListener("visibilitychange", ()=>{
+  if (document.hidden && phase==="playing") setPaused(true, true);
+});
+
+/* ---------- 난이도 설정값 ----------
+   카드3의 A/B 검증(SUBMISSION.md)은 spawnInterval 한 개만 바꾼 단일변수 비교입니다.
+   실제 플레이용 쉬움/보통/어려움 3단계는 그 검증 이후 실제 플레이 테스트에서
+   "몹을 많이 스폰시키면 처치→레벨업이 더 빨라져 보스도 더 빨리 죽는" 역설이 발견되어,
+   보스 체력 배율(bossHpMul)을 두 번째 변수로 추가해 최종 밸런싱했습니다. */
+const DIFFICULTY = {
+  spawnInterval: 1400,   // 몹 스폰 간격(ms) — 낮을수록 위협은 커지지만 레벨업도 빨라짐
+  bossHpMul: 1,          // 보스 체력 배율 — 클리어에 필요한 실제 소요시간을 직접 조절
+  debuffEvery: 10,       // 초 단위, 고정값(테스트 대상 아님)
+  debuffDuration: 3,     // 초, 고정값
+  debuffFactor: 0.5,     // 고정값
+};
+
+/* ---------- 게임 상수 ---------- */
+const ROUND_TIME = 30;
+const PLAYER_SPEED = 220;
+const PULSE_RADIUS = 90;
+const PULSE_DAMAGE = 8;
+const PULSE_INTERVAL = 0.45;
+// 레벨업 성장폭 (플레이어 입장에서 확실히 강해지는 느낌을 주기 위한 값)
+const LEVEL_ATK_GROWTH = 3, LEVEL_RANGE_GROWTH = 9, LEVEL_HP_GROWTH = 6, LEVEL_HEAL = 10;
+const LEVEL_ATKSPEED_MUL = 0.95, LEVEL_ATKSPEED_FLOOR = 0.55;
+const MOB_HP = 12, MOB_RADIUS = 10, MOB_CONTACT_DMG = 5, MOB_HIT_COOLDOWN = 0.7;
+const BOSS_HP_MAX = 260, BOSS_RADIUS = 22, BOSS_SPEED = 40, BOSS_CONTACT_DMG = 6;
+const MAX_MOBS = 40, MAX_PARTICLES = 150, MAX_BULLETS = 80;
+
+// 보스 페이즈 경계 (체력 비율 기준)
+const PHASE2_RATIO = 0.6, PHASE3_RATIO = 0.2;
+// 페이즈별 탄막(재의 깃털 탄막 / 붕괴하는 신념) 설정
+const BOSS_ATTACK = {
+  1: { interval: 1900, count: 6,  speed: 115, dmg: 4, r: 5 },
+  2: { interval: 1600, count: 7,  speed: 125, dmg: 5, r: 5 },
+  3: { interval: 1100, count: 9,  speed: 145, dmg: 5, r: 6 },
+};
+// 균열의 궤적: 예고 후 생기는 장판(2페이즈부터)
+const VOID_POOL = { interval: 3200, telegraph: 0.7, life: 2.6, radius: 42, dps: 4, slow: 0.65 };
+const STATIC_HAZARD_RADIUS = 55, STATIC_HAZARD_COUNT = 2;
+// 3페이즈: 안전 구역만 남고 나머지는 붕괴(진입 불가 벽). 안전 구역은 보스를 중심으로 계속 따라다녀서
+// "고정된 자리에 머무는" 것이 아니라 보스에게 끌려다니는 느낌을 준다.
+const SAFE_RING_RADIUS = 170;
+// 자동 발동 스킬: 폭풍의 소용돌이 / 뇌전의 성역
+const WHIRLWIND_INTERVAL = 9, WHIRLWIND_PULL_RADIUS = 220, WHIRLWIND_PULL_AMOUNT = 0.55, WHIRLWIND_BURST_RADIUS = 130;
+const SANCTUARY_HP_RATIO = 0.3, SANCTUARY_DURATION = 3, SANCTUARY_DMG_MUL = 0.4;
+
+/* ---------- 상태 ---------- */
+let phase = "ready"; // ready | playing | paused | success | fail
+let autoPausedByBlur = false;
+let elapsed = 0, spawnTimer = 0, debuffTimer = 0, debuffActive = false, debuffFired = new Set();
+let player, boss, mobs, particles, kills, level, xp, xpNeed, score;
+let bossPhase, bossAttackTimer, poolTimer, bullets, hazards;
+let levelBanner;
+let phaseBanner; // 보스 페이즈 전환 시 잠깐 뜨는 큰 경고 배너 {text,life,color}
+let shakeMag = 0, shakeTime = 0; // 화면 흔들림(연출용) — 피격/페이즈전환/승리 시 사용
+let playerTrail = []; // 플레이어가 움직일 때 남는 잔상 궤적
+let bolts = []; // 공격 명중 시 잠깐 보이는 번개 이펙트 {x1,y1,x2,y2,life}
+let whirlwindTimer, sanctuaryUsed, sanctuaryActive, sanctuaryTimer;
+let lastTs = 0;
+let rafId = null;
+
+function freshRoundState(spawnIntervalOverride){
+  player = { x:W/2, y:H-90, r:14, hp:130, hpMax:130, pulseCd:0, speedMul:1,
+             atk:PULSE_DAMAGE, range:PULSE_RADIUS, atkSpeedMul:1 };
+  levelBanner = null;
+  const bossHpScaled = Math.round(BOSS_HP_MAX * (DIFFICULTY.bossHpMul||1));
+  boss = { x:W/2, y:120, r:BOSS_RADIUS, baseR:BOSS_RADIUS, hp:bossHpScaled, hpMax:bossHpScaled, vx:0, vy:0, cracks:[] };
+  mobs = [];
+  particles = [];
+  bullets = [];
+  hazards = [];
+  bolts = [];
+  phaseBanner = null; shakeMag = 0; shakeTime = 0; playerTrail = [];
+  kills = 0; level = 1; xp = 0; xpNeed = 50; score = 0;
+  elapsed = 0; spawnTimer = 0; debuffTimer = 0; debuffActive = false; debuffFired = new Set();
+  bossPhase = 1; bossAttackTimer = BOSS_ATTACK[1].interval; poolTimer = VOID_POOL.interval;
+  whirlwindTimer = WHIRLWIND_INTERVAL; sanctuaryUsed = false; sanctuaryActive = false; sanctuaryTimer = 0;
+  DIFFICULTY.spawnInterval = spawnIntervalOverride || DIFFICULTY._base || 1400;
+}
+DIFFICULTY._base = DIFFICULTY.spawnInterval;
+
+// 피해 적용 공용 함수: 뇌전의 성역(보호막) 배율을 한 곳에서 처리
+function damagePlayer(amount){
+  const mul = sanctuaryActive ? SANCTUARY_DMG_MUL : 1;
+  player.hp -= amount * mul;
+  if (player.hp < 0) player.hp = 0;
+}
+
+function startRound(spawnIntervalOverride){
+  freshRoundState(spawnIntervalOverride);
+  phase = "playing";
+  autoPausedByBlur = false;
+  hideOverlay();
+}
+
+function restartRound(){
+  ensureAudio();
+  startRound();
+}
+
+function endRound(outcome, reasonText){
+  phase = outcome; // "success" | "fail"
+  const clearTime = elapsed;
+  score = kills*10 + (outcome==="success" ? Math.round(Math.max(0, ROUND_TIME-elapsed)*5) : 0);
+  const isNewBest = score > save.highScore;
+  if (isNewBest){ save.highScore = score; }
+  persistSave();
+  if (outcome === "success") sfx.success(); else sfx.fail();
+  showResultOverlay(outcome, reasonText, clearTime, kills, score, save.highScore, isNewBest);
+  updateHud();
+}
+
+/* ---------- 일시정지 (카드2) ---------- */
+function setPaused(p, byBlur){
+  if (phase!=="playing" && phase!=="paused") return;
+  if (p){
+    phase = "paused";
+    autoPausedByBlur = !!byBlur;
+    showOverlay("일시정지", byBlur ? "다른 창으로 이동해 자동으로 멈췄습니다. 이어서 진행하려면 재개를 누르세요." : "재개 버튼을 누르면 이어서 진행됩니다.", null);
+    document.getElementById("btn-resume").style.display = "inline-block";
+    document.getElementById("btn-start").style.display = "none";
+  } else {
+    phase = "playing";
+    hideOverlay();
+  }
+}
+function togglePause(){
+  if (phase==="playing") setPaused(true,false);
+  else if (phase==="paused") setPaused(false,false);
+}
+
+/* ---------- 오버레이 UI ---------- */
+const overlay = document.getElementById("overlay");
+const overlayTitle = document.getElementById("overlay-title");
+const overlayText = document.getElementById("overlay-text");
+const overlayResults = document.getElementById("overlay-results");
+const overlayBadge = document.getElementById("overlay-badge");
+const resTimeLabel = document.getElementById("res-time-label");
+const resTime = document.getElementById("res-time");
+const resKills = document.getElementById("res-kills");
+const resScore = document.getElementById("res-score");
+const resBest = document.getElementById("res-best");
+const btnStart = document.getElementById("btn-start");
+const btnResume = document.getElementById("btn-resume");
+function showOverlay(title, text){
+  overlayTitle.className = "";
+  overlayTitle.textContent = title;
+  overlayText.textContent = text;
+  overlayText.style.display = "";
+  overlayResults.classList.add("hidden");
+  overlay.classList.remove("hidden");
+}
+// 성공/실패 결과창: 플래시 게임의 결과 화면처럼 클리어 타임을 큼직하게 보여주고,
+// 처치·점수·최고기록을 카드 형태로 정리해서 한눈에 들어오도록 구성
+function showResultOverlay(outcome, reasonText, clearTime, killCount, scoreVal, bestVal, isNewBest){
+  overlayTitle.className = outcome; // "success" | "fail" → CSS로 색·글로우·장식 문구 분기
+  overlayTitle.textContent = outcome === "success" ? "성공!" : "실패";
+  overlayText.textContent = reasonText;
+  overlayText.style.display = "";
+  resTimeLabel.textContent = outcome === "success" ? "클리어 타임" : "경과 시간";
+  resTime.textContent = clearTime.toFixed(2) + "초";
+  resKills.textContent = killCount;
+  resScore.textContent = scoreVal;
+  resBest.textContent = bestVal;
+  overlayBadge.classList.toggle("hidden", !isNewBest);
+  overlayResults.classList.remove("hidden");
+  btnStart.textContent = "다시 도전하기";
+  overlay.classList.remove("hidden");
+}
+function hideOverlay(){ overlay.classList.add("hidden"); }
+btnStart.addEventListener("click", ()=>{ ensureAudio(); btnResume.style.display="none"; btnStart.style.display="inline-block"; startRound(); });
+btnResume.addEventListener("click", ()=>{ setPaused(false,false); });
+document.getElementById("btn-pause").addEventListener("click", togglePause);
+document.getElementById("btn-restart").addEventListener("click", restartRound);
+
+/* ---------- 설정 토글 (카드5) ---------- */
+const chkMute = document.getElementById("chk-mute");
+const chkMotion = document.getElementById("chk-motion");
+chkMute.checked = save.muted;
+chkMotion.checked = save.reducedMotion;
+chkMute.addEventListener("change", ()=>{ save.muted = chkMute.checked; persistSave(); });
+chkMotion.addEventListener("change", ()=>{ save.reducedMotion = chkMotion.checked; persistSave(); });
+
+/* ---------- 라이트/다크 모드 (페이지 바깥 배경·패널 디자인만 전환, 인게임 캔버스는 세계관 유지) ---------- */
+const THEME_KEY = "boss-rush-theme";
+const themeToggle = document.getElementById("theme-toggle");
+function applyTheme(t){
+  document.documentElement.setAttribute("data-theme", t === "light" ? "light" : "dark");
+  themeToggle.textContent = t === "light" ? "다크 모드" : "라이트 모드";
+  try{ localStorage.setItem(THEME_KEY, t); }catch(e){}
+}
+let initialTheme = "dark";
+try{ initialTheme = localStorage.getItem(THEME_KEY) || "dark"; }catch(e){}
+applyTheme(initialTheme);
+themeToggle.addEventListener("click", ()=>{
+  const cur = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+  applyTheme(cur === "light" ? "dark" : "light");
+});
+
+/* ---------- 난이도 선택 (눈에 보이는 위치, 실제 플레이용) ---------- */
+const diffButtons = Array.from(document.querySelectorAll(".diff-btn"));
+const diffCurrent = document.getElementById("diff-current");
+function setDifficulty(ms, label, bossHpMul){
+  bossHpMul = bossHpMul || 1;
+  DIFFICULTY._base = ms;
+  DIFFICULTY.spawnInterval = ms; // 진행 중이면 다음 스폰부터 즉시 반영
+  DIFFICULTY.bossHpMul = bossHpMul; // 다음 판(리스타트 포함)부터 적용 — 보스 체력으로 실제 소요시간을 조절
+  diffButtons.forEach(b=> b.classList.toggle("active", Number(b.dataset.ms)===ms));
+  diffCurrent.textContent = `현재: ${label} (스폰 ${ms}ms · 보스 체력 ${Math.round(BOSS_HP_MAX*bossHpMul)})` + (phase==="playing"||phase==="paused" ? " · 다음 판부터 완전히 적용" : "");
+}
+diffButtons.forEach(btn=>{
+  btn.addEventListener("click", ()=> setDifficulty(Number(btn.dataset.ms), btn.dataset.label, Number(btn.dataset.hpmul)));
+});
+setDifficulty(1200, "보통", 1.6); // 기본값: 보통
+
+/* ---------- 스폰/전투 로직 ---------- */
+function rand(a,b){ return a + Math.random()*(b-a); }
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+// 화면 흔들림 연출: 더 강한/긴 요청이 들어오면 갱신, 약한 요청은 무시(중첩 남발 방지)
+function addShake(mag, dur){
+  if (mag > shakeMag) shakeMag = mag;
+  if (dur > shakeTime) shakeTime = dur;
+}
+
+function spawnMob(){
+  if (mobs.length >= MAX_MOBS) return;
+  const edge = Math.floor(rand(0,4));
+  let x,y;
+  if (edge===0){ x=rand(0,W); y=-20; }
+  else if (edge===1){ x=W+20; y=rand(0,H); }
+  else if (edge===2){ x=rand(0,W); y=H+20; }
+  else { x=-20; y=rand(0,H); }
+  mobs.push({ x, y, r:MOB_RADIUS, hp:MOB_HP, speed:rand(70,110), hitCd:0 });
+}
+
+function spawnParticle(x,y,color){
+  if (save.reducedMotion){
+    if (particles.length >= 20) return;
+  } else if (particles.length >= MAX_PARTICLES){
+    particles.shift();
+  }
+  const n = save.reducedMotion ? 2 : 6;
+  for (let i=0;i<n;i++){
+    particles.push({ x,y, vx:rand(-80,80), vy:rand(-80,80), life:0.4, color });
+  }
+}
+
+function pulseAttack(dt){
+  player.pulseCd -= dt;
+  if (player.pulseCd > 0) return;
+  player.pulseCd = PULSE_INTERVAL * player.atkSpeedMul;
+  player.pulseFlash = 0.18; // 공격 발동 시각 효과 트리거
+  let hitSomething = false;
+  for (const m of mobs){
+    if (dist(player,m) <= player.range + m.r){
+      m.hp -= player.atk; hitSomething = true;
+      spawnParticle(m.x,m.y,"#5ee1c0");
+      if (bolts.length < 24) bolts.push({x1:player.x,y1:player.y,x2:m.x,y2:m.y,life:0.15,color:"rgba(94,225,192,0.85)"});
+    }
+  }
+  if (dist(player,boss) <= player.range + boss.r){
+    boss.hp = Math.max(0, boss.hp - player.atk); hitSomething = true;
+    spawnParticle(boss.x,boss.y,"#bdf0ff");
+    if (bolts.length < 24) bolts.push({x1:player.x,y1:player.y,x2:boss.x,y2:boss.y,life:0.18,color:"rgba(230,250,255,0.9)"});
+  }
+  if (hitSomething) sfx.hit();
+}
+
+function gainXp(amount){
+  xp += amount;
+  while (xp >= xpNeed){
+    xp -= xpNeed; level++; xpNeed = 50*level;
+    // 확실히 강해지는 성장치: 공격력·사거리·최대체력이 매 레벨 눈에 띄게 오른다
+    player.atk += LEVEL_ATK_GROWTH;
+    player.range += LEVEL_RANGE_GROWTH;
+    player.hpMax += LEVEL_HP_GROWTH;
+    player.hp = Math.min(player.hpMax, player.hp + LEVEL_HEAL);
+    player.atkSpeedMul = Math.max(LEVEL_ATKSPEED_FLOOR, player.atkSpeedMul*LEVEL_ATKSPEED_MUL);
+    levelBanner = { text:`LV ${level}!`, x:player.x, y:player.y, life:1.2 };
+    sfx.levelup();
+    spawnParticle(player.x,player.y,"#ffcc4d");
+    spawnParticle(player.x,player.y,"#ffe9a8");
+  }
+}
+
+function updateBossPhase(){
+  const ratio = boss.hp / boss.hpMax;
+  let next = 1;
+  if (ratio <= PHASE3_RATIO) next = 3;
+  else if (ratio <= PHASE2_RATIO) next = 2;
+  if (next !== bossPhase){
+    bossPhase = next;
+    bossAttackTimer = 0; // 페이즈 전환 직후 새 패턴 즉시 반영
+    spawnParticle(boss.x, boss.y, next===3?"#ff5d8a":"#b98cf0");
+    sfx.phase();
+    // 오라가 바뀌는 순간을 화면 흔들림 + 큰 배너로 강조(타락이 진행되는 것을 확실히 체감하도록)
+    phaseBanner = {
+      text: next===3 ? "3페이즈 — 완전한 타락" : "2페이즈 — 오염이 번진다",
+      life: 1.7,
+      color: next===3 ? "#ff5d5d" : "#b98cf0",
+    };
+    addShake(next===3?11:6.5, next===3?0.55:0.35);
+    // 페이즈가 오를수록 갑주가 갈라지는 균열이 늘고, 3페이즈엔 광폭화로 몸집도 커진다
+    const crackCount = next===3?9:next===2?4:0;
+    boss.cracks = [];
+    for (let i=0;i<crackCount;i++){
+      const ang = rand(0,Math.PI*2), len = rand(0.4,0.9)*boss.baseR;
+      boss.cracks.push({ ang, len, spread: rand(-0.4,0.4) });
+    }
+    if (next === 3) boss.r = boss.baseR*1.18;
+    if (next === 2){
+      // 오염 구역(균열) 고정 2곳 생성 — 라운드 끝까지 유지
+      for (let i=0;i<STATIC_HAZARD_COUNT;i++){
+        const ang = (i/STATIC_HAZARD_COUNT)*Math.PI*2 + rand(0,1);
+        hazards.push({
+          x: W/2 + Math.cos(ang)*180, y: H/2 + Math.sin(ang)*140,
+          r: STATIC_HAZARD_RADIUS, dps: VOID_POOL.dps*0.6, slow: 0.7,
+          telegraph:false, telegraphTimer:0, life:null, // life:null = 영구
+        });
+      }
+    }
+  }
+}
+
+function spawnBossBulletRing(){
+  const cfg = BOSS_ATTACK[bossPhase];
+  if (bullets.length >= MAX_BULLETS) return;
+  for (let i=0;i<cfg.count;i++){
+    const ang = (i/cfg.count)*Math.PI*2 + rand(0,0.3);
+    bullets.push({
+      x: boss.x, y: boss.y,
+      vx: Math.cos(ang)*cfg.speed, vy: Math.sin(ang)*cfg.speed,
+      r: cfg.r, dmg: cfg.dmg,
+    });
+  }
+}
+
+function spawnVoidPoolTelegraph(){
+  hazards.push({
+    x: player.x, y: player.y, r: VOID_POOL.radius,
+    dps: VOID_POOL.dps, slow: VOID_POOL.slow,
+    telegraph:true, telegraphTimer: VOID_POOL.telegraph, life: VOID_POOL.life,
+  });
+}
+
+function triggerWhirlwind(){
+  // 폭풍의 소용돌이: 주변 몹을 순간적으로 끌어당긴 뒤 광역 타격
+  for (const m of mobs){
+    if (dist(player,m) <= WHIRLWIND_PULL_RADIUS){
+      m.x = player.x + (m.x-player.x)*(1-WHIRLWIND_PULL_AMOUNT);
+      m.y = player.y + (m.y-player.y)*(1-WHIRLWIND_PULL_AMOUNT);
+    }
+  }
+  for (const m of mobs){ if (dist(player,m) <= WHIRLWIND_BURST_RADIUS) m.hp -= player.atk*1.5; }
+  if (dist(player,boss) <= WHIRLWIND_BURST_RADIUS) boss.hp = Math.max(0, boss.hp - player.atk*1.5);
+  spawnParticle(player.x, player.y, "#5ee1c0");
+  sfx.whirlwind();
+}
+
+function update(dt){
+  if (phase !== "playing") return;
+  elapsed += dt;
+
+  updateBossPhase();
+
+  // 둔화 디버프: 10초/20초 고정 트리거 (테스트 대상 아님)
+  for (const t of [DIFFICULTY.debuffEvery, DIFFICULTY.debuffEvery*2]){
+    if (elapsed >= t && !debuffFired.has(t)){
+      debuffFired.add(t); debuffActive = true; debuffTimer = DIFFICULTY.debuffDuration;
+    }
+  }
+  if (debuffActive){
+    debuffTimer -= dt;
+    if (debuffTimer <= 0) debuffActive = false;
+  }
+
+  // 뇌전의 성역(보호막): 체력이 처음 30% 이하로 내려간 순간 자동 발동(라운드당 1회, 선언된 사건)
+  if (!sanctuaryUsed && player.hp/player.hpMax <= SANCTUARY_HP_RATIO){
+    sanctuaryUsed = true; sanctuaryActive = true; sanctuaryTimer = SANCTUARY_DURATION;
+    spawnParticle(player.x, player.y, "#9fe8ff");
+    sfx.sanctuary();
+  }
+  if (sanctuaryActive){
+    sanctuaryTimer -= dt;
+    if (sanctuaryTimer <= 0) sanctuaryActive = false;
+  }
+
+  // 균열 장판(2페이즈부터): 예고 → 발동 → 소멸, 안에 있으면 지속피해+감속
+  let inHazardSlow = 1;
+  for (let i=hazards.length-1;i>=0;i--){
+    const h = hazards[i];
+    if (h.telegraph){
+      h.telegraphTimer -= dt;
+      if (h.telegraphTimer <= 0) h.telegraph = false;
+    } else {
+      if (dist(player,h) <= h.r){
+        damagePlayer(h.dps*dt);
+        inHazardSlow = Math.min(inHazardSlow, h.slow);
+      }
+      if (h.life !== null){
+        h.life -= dt;
+        if (h.life <= 0){ hazards.splice(i,1); continue; }
+      }
+    }
+  }
+
+  // 이동 (핵심 조작 → 상태 변화). 둔화 디버프 · 균열 감속이 곱연산으로 적용됨.
+  const speedMul = (debuffActive ? DIFFICULTY.debuffFactor : 1) * inHazardSlow;
+  let vx=0, vy=0;
+  if (pressed.up) vy -= 1;
+  if (pressed.down) vy += 1;
+  if (pressed.left) vx -= 1;
+  if (pressed.right) vx += 1;
+  if (vx || vy){
+    const len = Math.hypot(vx,vy) || 1;
+    player.x += (vx/len) * PLAYER_SPEED * speedMul * dt;
+    player.y += (vy/len) * PLAYER_SPEED * speedMul * dt;
+    playerTrail.push({ x:player.x, y:player.y, life:0.22 });
+    if (playerTrail.length > 12) playerTrail.shift();
+  }
+  player.x = Math.max(player.r, Math.min(W-player.r, player.x));
+  player.y = Math.max(player.r, Math.min(H-player.r, player.y));
+  for (let i=playerTrail.length-1;i>=0;i--){
+    playerTrail[i].life -= dt;
+    if (playerTrail[i].life <= 0) playerTrail.splice(i,1);
+  }
+  // 3페이즈: 전장 대부분 붕괴 → 안전한 좁은 링 밖은 진입 불가(벽)
+  if (bossPhase === 3){
+    const dxr = player.x-boss.x, dyr = player.y-boss.y;
+    const dr = Math.hypot(dxr,dyr);
+    if (dr > SAFE_RING_RADIUS - player.r){
+      const k = (SAFE_RING_RADIUS - player.r) / (dr||1);
+      player.x = boss.x + dxr*k;
+      player.y = boss.y + dyr*k;
+    }
+  }
+
+  // 스폰
+  spawnTimer -= dt*1000;
+  if (spawnTimer <= 0){ spawnMob(); spawnTimer = DIFFICULTY.spawnInterval; }
+
+  // 몹 이동/충돌
+  for (let i=mobs.length-1;i>=0;i--){
+    const m = mobs[i];
+    const dx = player.x-m.x, dy = player.y-m.y;
+    const len = Math.hypot(dx,dy)||1;
+    m.x += (dx/len)*m.speed*dt; m.y += (dy/len)*m.speed*dt;
+    m.hitCd -= dt;
+    if (dist(player,m) <= player.r+m.r && m.hitCd<=0){
+      damagePlayer(MOB_CONTACT_DMG); m.hitCd = MOB_HIT_COOLDOWN;
+      spawnParticle(player.x,player.y,"#ff5d6c");
+      addShake(2.5, 0.12);
+    }
+    if (m.hp<=0){ mobs.splice(i,1); kills++; gainXp(10); }
+  }
+
+  // 보스 이동/충돌
+  {
+    const dx = player.x-boss.x, dy = player.y-boss.y;
+    const len = Math.hypot(dx,dy)||1;
+    boss.x += (dx/len)*BOSS_SPEED*dt; boss.y += (dy/len)*BOSS_SPEED*dt;
+    if (dist(player,boss) <= player.r+boss.r){
+      damagePlayer(BOSS_CONTACT_DMG*dt);
+    }
+  }
+
+  // 보스 탄막(재의 깃털 탄막 / 균열의 궤적 / 붕괴하는 신념 — 페이즈별 패턴, 선언된 주기로만 발동)
+  bossAttackTimer -= dt*1000;
+  if (bossAttackTimer <= 0){ spawnBossBulletRing(); bossAttackTimer = BOSS_ATTACK[bossPhase].interval; }
+  if (bossPhase >= 2){
+    poolTimer -= dt*1000;
+    if (poolTimer <= 0){ spawnVoidPoolTelegraph(); poolTimer = VOID_POOL.interval; }
+  }
+  for (let i=bullets.length-1;i>=0;i--){
+    const b = bullets[i];
+    b.x += b.vx*dt; b.y += b.vy*dt;
+    if (b.x < -40 || b.x > W+40 || b.y < -40 || b.y > H+40){ bullets.splice(i,1); continue; }
+    if (dist(player,b) <= player.r+b.r){
+      damagePlayer(b.dmg);
+      spawnParticle(b.x,b.y,"#c9a8ff");
+      addShake(3.5, 0.15);
+      bullets.splice(i,1);
+    }
+  }
+
+  // 폭풍의 소용돌이(자동, 9초 주기)
+  whirlwindTimer -= dt;
+  if (whirlwindTimer <= 0){ triggerWhirlwind(); whirlwindTimer = WHIRLWIND_INTERVAL; }
+
+  pulseAttack(dt);
+
+  // 파티클
+  for (let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt;
+    if (p.life<=0) particles.splice(i,1);
+  }
+  // 공격 발동 시각효과 / 레벨업 배너 감쇠
+  if (player.pulseFlash > 0) player.pulseFlash -= dt;
+  if (levelBanner){
+    levelBanner.life -= dt; levelBanner.y -= 22*dt;
+    if (levelBanner.life <= 0) levelBanner = null;
+  }
+  if (phaseBanner){
+    phaseBanner.life -= dt;
+    if (phaseBanner.life <= 0) phaseBanner = null;
+  }
+  if (shakeTime > 0){
+    shakeTime -= dt;
+    if (shakeTime <= 0){ shakeTime = 0; shakeMag = 0; }
+  }
+  for (let i=bolts.length-1;i>=0;i--){
+    bolts[i].life -= dt;
+    if (bolts[i].life <= 0) bolts.splice(i,1);
+  }
+
+  // 종료 판정
+  if (player.hp <= 0){ player.hp=0; endRound("fail","체력 소진"); return; }
+  if (boss.hp <= 0){
+    addShake(9, 0.5);
+    for (let i=0;i<10;i++) spawnParticle(boss.x+rand(-20,20), boss.y+rand(-20,20), i%2?"#ffe9a8":"#5ee1c0");
+    endRound("success","대천사 정화 성공");
+    return;
+  }
+  if (elapsed >= ROUND_TIME){ endRound("fail","시간 초과 (보스 미처치)"); return; }
+}
+
+/* ---------- 렌더 (SD 2등신 실루엣: 원형 머리 + 사다리꼴 몸 + 삼각 날개) ---------- */
+// glowLevel: 0=없음, 1=은은한 오라, 2=오라+후광(레벨업으로 강해졌을 때 눈에 보이는 성장 연출)
+// kind: "player"=폭풍의 천사장(온전한 천사), "boss"=의심하는 대천사(타락/붕괴하는 천사) — 실루엣을 테마에 맞게 다르게 그린다
+function drawChibi(x,y,r,bodyColor,wingColor,wingJagged,wingScale,glowLevel,glowColor,kind,bossPhaseArg){
+  wingScale = wingScale||1;
+  if (glowLevel>0){
+    ctx2d.save();
+    ctx2d.globalAlpha = 0.28;
+    ctx2d.fillStyle = glowColor||"#5ee1c0";
+    ctx2d.beginPath(); ctx2d.arc(x,y,r*(1.5+glowLevel*0.35),0,Math.PI*2); ctx2d.fill();
+    ctx2d.restore();
+  }
+  // 바닥 그림자(입체감) + 대리석 바닥에 은은히 비치는 색 반사(호수·대좌의 반사 테마와 통일)
+  ctx2d.save();
+  ctx2d.globalAlpha = 0.35;
+  ctx2d.fillStyle = "#000814";
+  ctx2d.beginPath(); ctx2d.ellipse(x, y+r*1.55, r*0.95, r*0.32, 0, 0, Math.PI*2); ctx2d.fill();
+  ctx2d.restore();
+  ctx2d.save();
+  ctx2d.globalAlpha = 0.22 + 0.06*Math.sin(elapsed*2.4);
+  ctx2d.fillStyle = glowColor || bodyColor;
+  ctx2d.beginPath(); ctx2d.ellipse(x, y+r*1.5, r*0.55, r*0.14, 0, 0, Math.PI*2); ctx2d.fill();
+  ctx2d.restore();
+  const headR = r*0.62, bodyW = r*1.5, bodyH = r*1.15, bodyY = y+r*0.28;
+
+  if (kind === "player"){
+    // 천사장의 망토(등 뒤에서 은은히 나부낌) — 금빛 테두리와 물결 밑단으로 더 화려하게
+    ctx2d.save();
+    ctx2d.globalAlpha = 0.55;
+    ctx2d.fillStyle = "rgba(30,70,80,0.55)";
+    const sway = Math.sin(elapsed*3)*r*0.15;
+    ctx2d.beginPath();
+    ctx2d.moveTo(x-bodyW*0.32, bodyY);
+    ctx2d.quadraticCurveTo(x-bodyW*0.6+sway, bodyY+bodyH*1.3, x-bodyW*0.15, bodyY+bodyH*1.55);
+    ctx2d.lineTo(x+bodyW*0.15, bodyY+bodyH*1.55);
+    ctx2d.quadraticCurveTo(x+bodyW*0.6+sway, bodyY+bodyH*1.3, x+bodyW*0.32, bodyY);
+    ctx2d.closePath(); ctx2d.fill();
+    ctx2d.globalAlpha = 0.8;
+    ctx2d.strokeStyle = "rgba(255,214,140,0.55)";
+    ctx2d.lineWidth = 1.2;
+    ctx2d.stroke();
+    ctx2d.fillStyle = "rgba(255,214,140,0.35)";
+    for (let i=-1;i<=1;i++){
+      ctx2d.beginPath();
+      ctx2d.arc(x+i*bodyW*0.13+sway*0.3, bodyY+bodyH*1.55, r*0.09, 0, Math.PI);
+      ctx2d.fill();
+    }
+    ctx2d.restore();
+  }
+
+  // 날개(뒤) — 온전한 천사(player)는 겹겹의 깃털, 타락한 대천사(boss)는 찢어진 비대칭 날개
+  for (const side of [-1,1]){
+    if (kind === "player"){
+      // 층을 이룬 깃털 날개(뒤→앞 순으로 옅은 색부터)
+      for (let layer=2; layer>=0; layer--){
+        const lscale = wingScale * (0.7 + layer*0.18);
+        ctx2d.globalAlpha = 0.55 + layer*0.15;
+        ctx2d.fillStyle = wingColor;
+        ctx2d.beginPath();
+        ctx2d.moveTo(x+side*r*0.3, bodyY-r*0.1-layer*r*0.12);
+        ctx2d.quadraticCurveTo(x+side*r*2.1*lscale, bodyY-r*0.7*lscale-layer*r*0.05,
+                                x+side*r*1.8*lscale, bodyY+r*0.6*lscale);
+        ctx2d.quadraticCurveTo(x+side*r*0.95, bodyY+r*0.45, x+side*r*0.3, bodyY-r*0.1-layer*r*0.12);
+        ctx2d.closePath(); ctx2d.fill();
+      }
+      ctx2d.globalAlpha = 1;
+    } else if (wingJagged){
+      // 찢기고 비대칭인 날개(한쪽은 크게 바스러진 형태) + 구멍
+      const tear = side>0 ? 1.15 : 0.85; // 좌우 비대칭
+      ctx2d.fillStyle = wingColor;
+      ctx2d.beginPath();
+      ctx2d.moveTo(x+side*r*0.3, bodyY-r*0.1);
+      ctx2d.lineTo(x+side*r*1.9*wingScale*tear, bodyY-r*0.9*wingScale);
+      ctx2d.lineTo(x+side*r*1.4*wingScale, bodyY-r*0.15);
+      ctx2d.lineTo(x+side*r*2.15*wingScale*tear, bodyY+r*0.55*wingScale);
+      ctx2d.lineTo(x+side*r*1.5*wingScale, bodyY+r*0.15);
+      ctx2d.lineTo(x+side*r*1.75*wingScale*tear, bodyY+r*0.75*wingScale);
+      ctx2d.lineTo(x+side*r*1.05*wingScale, bodyY+r*0.4);
+      ctx2d.closePath(); ctx2d.fill();
+      // 찢어진 구멍(배경색으로 도려낸 것처럼)
+      ctx2d.fillStyle = "#05060c";
+      ctx2d.globalAlpha = 0.85;
+      ctx2d.beginPath();
+      ctx2d.ellipse(x+side*r*1.5*wingScale, bodyY-r*0.15*wingScale, r*0.22*wingScale, r*0.14*wingScale, side*0.5, 0, Math.PI*2);
+      ctx2d.fill();
+      ctx2d.globalAlpha = 1;
+    } else {
+      ctx2d.fillStyle = wingColor;
+      ctx2d.beginPath();
+      ctx2d.moveTo(x+side*r*0.3, bodyY-r*0.1);
+      ctx2d.quadraticCurveTo(x+side*r*2.0*wingScale, bodyY-r*0.6*wingScale, x+side*r*1.7*wingScale, bodyY+r*0.7*wingScale);
+      ctx2d.quadraticCurveTo(x+side*r*0.9, bodyY+r*0.5, x+side*r*0.3, bodyY-r*0.1);
+      ctx2d.closePath(); ctx2d.fill();
+    }
+  }
+
+  if (kind === "boss"){
+    // 부서진 후광(기울어지고 깜빡이는 고리) — 신성이 오염되어가는 모습
+    ctx2d.save();
+    ctx2d.globalAlpha = 0.5 + 0.3*Math.sin(elapsed*9);
+    ctx2d.strokeStyle = glowColor||"#8a5cff";
+    ctx2d.lineWidth = 2;
+    ctx2d.setLineDash([5,3]);
+    ctx2d.beginPath(); ctx2d.ellipse(x+r*0.15, y-r*1.2, r*0.6, r*0.16, -0.15, 0, Math.PI*1.7); ctx2d.stroke();
+    ctx2d.setLineDash([]);
+    ctx2d.restore();
+  }
+
+  if (kind === "player"){
+    // 도트 캐릭터 본체(회오리를 다루는 천사장)
+    const cellSize = r*0.20;
+    const robeCol = bodyColor;
+    const grid = drawPixelGrid(PLAYER_SPRITE, {
+      h:"#f0f4ff", f:"#ffd9a8", e:"#1a2233", r:robeCol, t:"#5ee1c0", a:robeCol, g:"#ffd66b"
+    }, x, y - r*0.32, cellSize);
+    // 왼손 옆의 작은 회오리
+    drawHandTornado(grid.left - cellSize*1.4, grid.top + cellSize*7.5);
+    // 어깨 견갑(금빛)과 가슴의 구슬 문장('천공의 구체')
+    ctx2d.fillStyle = "rgba(255,214,140,0.9)";
+    ctx2d.beginPath(); ctx2d.arc(x-bodyW/2.6, bodyY+r*0.05, r*0.16, 0, Math.PI*2); ctx2d.fill();
+    ctx2d.beginPath(); ctx2d.arc(x+bodyW/2.6, bodyY+r*0.05, r*0.16, 0, Math.PI*2); ctx2d.fill();
+    ctx2d.save();
+    ctx2d.translate(x, bodyY+bodyH*0.4); ctx2d.rotate(Math.PI/4);
+    ctx2d.fillStyle = "#5ee1c0";
+    ctx2d.fillRect(-r*0.16,-r*0.16,r*0.32,r*0.32);
+    ctx2d.restore();
+  } else if (kind === "boss"){
+    // 도트 캐릭터 본체(물의 권능을 훔쳐 다루는 타락한 대천사) — 페이즈가 오를수록 실루엣이 더 날카로워지고
+    // 팔레트 자체가 청록(성소)→자주(오염)→핏빛(완전 타락)으로 바뀐다
+    const ph = bossPhaseArg || 1;
+    const corruptC = ph===3 ? "#ff6b5d" : ph===2 ? "#c9a0ff" : "#8ff3ff"; // 눈동자
+    const corruptW = ph===3 ? "#8a3a4a" : ph===2 ? "#6a5fd9" : "#2fb8c9"; // 어깨 견갑/허리띠
+    const corruptCrown = ph===3 ? "rgba(255,110,90,0.9)" : ph===2 ? "rgba(200,150,255,0.85)" : "rgba(190,225,255,0.8)";
+    const corruptCrack = ph===3 ? "#ff6b5d" : "#8ff3ff";
+    const corruptDrip = ph===3 ? "rgba(255,140,120,0.85)" : "rgba(150,220,255,0.85)";
+    const cellSize = r*0.175;
+    const grid = drawPixelGrid(BOSS_SPRITE, {
+      o:"#241a30", k:"#0c1622", p:"#8fb6c9", c:corruptC, n:bodyColor, w:corruptW,
+      H:"#eaf9ff", s:"#050a14"
+    }, x, y - r*0.24, cellSize);
+    // 눈의 은은한 발광(도트 그림 위에 겹쳐 깜빡임 효과) — 완전 타락 시 붉게 이글거림
+    ctx2d.save();
+    ctx2d.globalAlpha = 0.5 + 0.4*Math.sin(elapsed*7);
+    ctx2d.fillStyle = corruptC;
+    ctx2d.fillRect(grid.left+3*grid.cellSize-0.4, grid.top+6*grid.cellSize-0.4, grid.cellSize+0.8, grid.cellSize+0.8);
+    ctx2d.fillRect(grid.left+8*grid.cellSize-0.4, grid.top+6*grid.cellSize-0.4, grid.cellSize+0.8, grid.cellSize+0.8);
+    ctx2d.restore();
+    // 오른손 옆에서 다루는 작은 물의 구슬
+    drawHandWaterOrb(grid.left + grid.cellSize*13, grid.top + grid.cellSize*8.5, bossPhaseArg);
+    // 부서진 왕관(날카로운 파편) — 신성을 잃어가는 타락한 대천사의 상징, 색이 오염 단계를 그대로 보여준다
+    ctx2d.fillStyle = corruptCrown;
+    for (const dxr of [-0.36,-0.15,0.15,0.36]){
+      const cxp = x+dxr*bodyW, cyp = grid.top - 3 - Math.abs(dxr)*(ph===3?18:12);
+      ctx2d.beginPath();
+      ctx2d.moveTo(cxp-3, grid.top+2);
+      ctx2d.lineTo(cxp, cyp);
+      ctx2d.lineTo(cxp+3, grid.top+2);
+      ctx2d.closePath(); ctx2d.fill();
+    }
+    // 로브 위로 갈라진 균열(발광하는 틈) — 페이즈가 오를수록 더 많고 뚜렷하게
+    ctx2d.save();
+    ctx2d.globalAlpha = 0.5 + 0.35*Math.sin(elapsed*5);
+    ctx2d.strokeStyle = corruptCrack;
+    ctx2d.lineWidth = ph===3?1.8:1.3;
+    ctx2d.beginPath();
+    ctx2d.moveTo(x-bodyW*0.18, bodyY+bodyH*0.1);
+    ctx2d.lineTo(x-bodyW*0.05, bodyY+bodyH*0.45);
+    ctx2d.lineTo(x-bodyW*0.16, bodyY+bodyH*0.75);
+    ctx2d.stroke();
+    if (ph>=2){
+      ctx2d.beginPath();
+      ctx2d.moveTo(x+bodyW*0.15, bodyY+bodyH*0.05);
+      ctx2d.lineTo(x+bodyW*0.08, bodyY+bodyH*0.35);
+      ctx2d.lineTo(x+bodyW*0.2, bodyY+bodyH*0.6);
+      ctx2d.stroke();
+    }
+    ctx2d.restore();
+    // 옷자락을 타고 흘러내리는 물방울(3페이즈엔 핏빛으로 탁해짐)
+    for (let i=0;i<3;i++){
+      const t = (elapsed*1.3 + i*0.7) % 1.4;
+      const dxr = (i-1)*bodyW*0.28;
+      ctx2d.globalAlpha = Math.max(0, 1-t/1.4)*0.8;
+      ctx2d.fillStyle = corruptDrip;
+      ctx2d.beginPath(); ctx2d.arc(x+dxr, bodyY+bodyH*0.9+t*r*0.9, 1.6, 0, Math.PI*2); ctx2d.fill();
+    }
+    ctx2d.globalAlpha = 1;
+  } else {
+    // 몸(기타 실루엣용 기본 형태)
+    ctx2d.fillStyle = bodyColor;
+    ctx2d.beginPath();
+    ctx2d.moveTo(x-bodyW/2, bodyY+bodyH);
+    ctx2d.lineTo(x-bodyW/2.6, bodyY);
+    ctx2d.lineTo(x+bodyW/2.6, bodyY);
+    ctx2d.lineTo(x+bodyW/2, bodyY+bodyH);
+    ctx2d.closePath(); ctx2d.fill();
+    // 머리
+    ctx2d.beginPath(); ctx2d.arc(x,y,headR,0,Math.PI*2); ctx2d.fill();
+  }
+
+  if (kind === "player"){
+    // 이마의 은은한 관(冠) 장식 + 보석
+    ctx2d.strokeStyle = "rgba(255,214,140,0.85)"; ctx2d.lineWidth = 1.6;
+    ctx2d.beginPath(); ctx2d.arc(x,y-headR*0.15,headR*0.78,Math.PI*1.15,Math.PI*1.85); ctx2d.stroke();
+    ctx2d.fillStyle = "rgba(120,220,255,0.9)";
+    ctx2d.beginPath(); ctx2d.arc(x, y-headR*0.15-headR*0.78, 2, 0, Math.PI*2); ctx2d.fill();
+    ctx2d.lineWidth = 1;
+    // 천사장의 후광(레벨과 무관하게 항상 은은히 존재, 성장할수록 밝아짐) — 겹의 신성기하학 고리
+    ctx2d.save();
+    ctx2d.globalAlpha = 0.55 + Math.min(0.35, glowLevel*0.15) + 0.1*Math.sin(elapsed*2);
+    ctx2d.strokeStyle = glowColor||"#ffe9a8";
+    ctx2d.lineWidth = 2;
+    ctx2d.beginPath(); ctx2d.ellipse(x,y-r*1.25,r*0.5,r*0.16,0,0,Math.PI*2); ctx2d.stroke();
+    ctx2d.globalAlpha *= 0.5;
+    ctx2d.lineWidth = 1;
+    ctx2d.beginPath(); ctx2d.ellipse(x,y-r*1.25,r*0.68,r*0.22,0,0,Math.PI*2); ctx2d.stroke();
+    ctx2d.restore();
+    // 몸 주위를 도는 작은 성광 입자(신성 기하학)
+    for (let i=0;i<3;i++){
+      const a = elapsed*1.6 + i/3*Math.PI*2;
+      const mx = x + Math.cos(a)*r*1.15, my = bodyY + Math.sin(a)*r*0.55;
+      ctx2d.save();
+      ctx2d.globalAlpha = 0.55 + 0.3*Math.sin(elapsed*3+i);
+      ctx2d.fillStyle = "rgba(255,236,190,0.9)";
+      ctx2d.beginPath(); ctx2d.arc(mx,my,1.6,0,Math.PI*2); ctx2d.fill();
+      ctx2d.restore();
+    }
+    ctx2d.lineWidth = 1;
+  }
+  if (glowLevel>=2 && kind!=="player"){
+    // (일반 후광 — player는 위에서 전용 후광을 그리므로 제외)
+    ctx2d.strokeStyle = glowColor||"#ffe9a8";
+    ctx2d.lineWidth = 2;
+    ctx2d.beginPath(); ctx2d.ellipse(x,y-r*1.25,r*0.55,r*0.18,0,0,Math.PI*2); ctx2d.stroke();
+    ctx2d.lineWidth = 1;
+  }
+}
+
+// ---- 도트(픽셀) 캐릭터 스프라이트 ----
+// 플레이어: 회오리를 다루는 온전한 천사장 (10x14)
+const PLAYER_SPRITE = [
+  "..hhhhhh..",
+  ".hhhhhhhh.",
+  "hhffffffhh",
+  "hffefeffhh",
+  "hffffffffh",
+  "..ffffff..",
+  "a.trrrrt.a",
+  "arrrrrrrra",
+  "arrrrrrrra",
+  "agggggggga",
+  ".rrrrrrrr.",
+  ".rrrrrrrr.",
+  ".ttrrrrtt.",
+  "..tttttt..",
+];
+// 보스: 물의 권능을 훔쳐 다루는 타락한 대천사 — 날카로운 뿔·각진 견갑·찢어진 밑단으로 더 위협적으로 (12x16)
+const BOSS_SPRITE = [
+  "..o......o..",
+  "..oo....oo..",
+  ".ooo....ooo.",
+  "..kkkkkkkk..",
+  ".kkkkkkkkkk.",
+  ".kHppppppHk.",
+  ".kpc.ss.cpk.",
+  ".kppppppppk.",
+  "wnnHnnnnHnnw",
+  "pnnnnnnnnnnp",
+  "pnnsnnnnsnnp",
+  "pnnnwwwwnnnp",
+  ".nnnnnnnnnn.",
+  ".nnHnnnnHnn.",
+  "w.nnnnnnnn.w",
+  "ww.nnnnnn.ww",
+];
+
+function drawPixelGrid(grid, palette, x, y, cellSize){
+  const cols = grid[0].length, rows = grid.length;
+  const left = x - cellSize*cols/2;
+  const top = y - cellSize*rows*0.5;
+  for (let ry=0; ry<rows; ry++){
+    const row = grid[ry];
+    for (let cx=0; cx<cols; cx++){
+      const ch = row[cx];
+      if (ch === "." || ch === " ") continue;
+      const col = palette[ch];
+      if (!col) continue;
+      ctx2d.fillStyle = col;
+      // 살짝 겹치게 그려 확대 시 안티앨리어싱 틈이 보이지 않도록 함
+      ctx2d.fillRect(left+cx*cellSize-0.4, top+ry*cellSize-0.4, cellSize+0.8, cellSize+0.8);
+    }
+  }
+  return { left, top, cellSize, cols, rows };
+}
+
+// 플레이어가 손에 든 작은 회오리(왼손 옆에서 계속 회전)
+function drawHandTornado(x,y){
+  ctx2d.save();
+  ctx2d.translate(x,y);
+  for (let i=0;i<3;i++){
+    const t = elapsed*6 + i*2.1;
+    const rr = 3 + i*2.6;
+    ctx2d.strokeStyle = `rgba(230,247,244,${0.85 - i*0.22})`;
+    ctx2d.lineWidth = 1.6;
+    ctx2d.beginPath();
+    ctx2d.arc(0, -i*2.2, rr, t, t+Math.PI*1.4);
+    ctx2d.stroke();
+  }
+  ctx2d.fillStyle = "rgba(94,225,192,0.9)";
+  ctx2d.beginPath(); ctx2d.arc(0,-6,1.6,0,Math.PI*2); ctx2d.fill();
+  ctx2d.restore();
+}
+
+// 보스가 손에 든 작은 물의 구슬(잔물결 링 + 떠도는 물방울)
+function drawHandWaterOrb(x,y,phase){
+  ctx2d.save();
+  ctx2d.translate(x,y);
+  const orbCol = phase===3 ? "rgba(120,220,255,0.5)" : "rgba(90,180,220,0.45)";
+  ctx2d.fillStyle = orbCol;
+  ctx2d.beginPath(); ctx2d.arc(0,0,6,0,Math.PI*2); ctx2d.fill();
+  ctx2d.strokeStyle = "rgba(200,240,255,0.8)";
+  ctx2d.lineWidth = 1;
+  for (let i=0;i<2;i++){
+    const t = (elapsed*2 + i*1.6) % 2;
+    ctx2d.globalAlpha = 1 - t/2;
+    ctx2d.beginPath(); ctx2d.arc(0,0,t*5,0,Math.PI*2); ctx2d.stroke();
+  }
+  ctx2d.globalAlpha = 1;
+  for (let i=0;i<3;i++){
+    const a = elapsed*3 + i/3*Math.PI*2;
+    ctx2d.fillStyle = "rgba(160,225,255,0.9)";
+    ctx2d.beginPath(); ctx2d.arc(Math.cos(a)*9, Math.sin(a)*9*0.5, 1.3, 0, Math.PI*2); ctx2d.fill();
+  }
+  ctx2d.restore();
+}
+
+// 보스를 둘러싼 타락의 오라 — 페이즈마다 색과 움직임이 완전히 달라져 "점진적으로 타락해가는" 모습을 표현
+const BOSS_AURA_MOTES = Array.from({length:22}, (_,i)=>({
+  a:i/22*Math.PI*2, rr:rand(0.75,1.3), sp:rand(0.4,1.1), sz:rand(1,2.4), ph:rand(0,10)
+}));
+function drawBossCorruptionAura(bx,by,br,phase){
+  const baseR = br*2.0;
+  ctx2d.save();
+  if (phase === 1){
+    // 1페이즈: 아직 남아있는 성소의 은은한 청록빛 — 고요하고 느리게 감돈다
+    for (const m of BOSS_AURA_MOTES){
+      const a = m.a + elapsed*0.28*m.sp;
+      const rr = baseR*m.rr*0.82;
+      const px = bx+Math.cos(a)*rr, py = by+Math.sin(a)*rr*0.6;
+      ctx2d.globalAlpha = 0.22+0.18*Math.sin(elapsed*1.4+m.ph);
+      ctx2d.fillStyle = "#bfe9ff";
+      ctx2d.beginPath(); ctx2d.arc(px,py,m.sz*0.8,0,Math.PI*2); ctx2d.fill();
+    }
+  } else if (phase === 2){
+    // 2페이즈: 오염이 번져 자주빛으로 일렁이는 스모크 — 회전이 빨라지고 거칠어진다
+    for (const m of BOSS_AURA_MOTES){
+      const a = m.a - elapsed*0.65*m.sp;
+      const rr = baseR*m.rr;
+      const px = bx+Math.cos(a)*rr, py = by+Math.sin(a)*rr*0.6;
+      ctx2d.globalAlpha = 0.3+0.25*Math.sin(elapsed*2.2+m.ph);
+      ctx2d.fillStyle = "#b98cf0";
+      ctx2d.beginPath(); ctx2d.arc(px,py,m.sz,0,Math.PI*2); ctx2d.fill();
+    }
+    ctx2d.globalAlpha = 0.16+0.08*Math.sin(elapsed*3);
+    ctx2d.strokeStyle = "#8a5cff"; ctx2d.lineWidth = 3;
+    ctx2d.beginPath(); ctx2d.arc(bx,by,baseR*1.05,0,Math.PI*2); ctx2d.stroke();
+  } else {
+    // 3페이즈: 완전히 타락한 핏빛 격류 — 이따금 어두운 번개 촉수가 뻗어나간다
+    for (const m of BOSS_AURA_MOTES){
+      const a = m.a + elapsed*1.5*m.sp;
+      const rr = baseR*m.rr*1.12;
+      const px = bx+Math.cos(a)*rr, py = by+Math.sin(a)*rr*0.6;
+      ctx2d.globalAlpha = 0.4+0.3*Math.sin(elapsed*4+m.ph);
+      ctx2d.fillStyle = "#ff5d5d";
+      ctx2d.beginPath(); ctx2d.arc(px,py,m.sz*1.3,0,Math.PI*2); ctx2d.fill();
+    }
+    ctx2d.globalAlpha = 0.2+0.1*Math.sin(elapsed*5);
+    ctx2d.strokeStyle = "#ff2f4d"; ctx2d.lineWidth = 4;
+    ctx2d.beginPath(); ctx2d.arc(bx,by,baseR*1.18,0,Math.PI*2); ctx2d.stroke();
+    const tCycle = elapsed % 0.6;
+    if (tCycle < 0.08){
+      const seedA = Math.floor(elapsed/0.6)*2.399;
+      for (let i=0;i<3;i++){
+        const a = seedA + i*2.1;
+        const tx = bx+Math.cos(a)*baseR*1.9, ty = by+Math.sin(a)*baseR*1.15;
+        ctx2d.globalAlpha = 0.75;
+        ctx2d.strokeStyle = "rgba(255,80,90,0.85)";
+        ctx2d.lineWidth = 1.6;
+        ctx2d.beginPath();
+        ctx2d.moveTo(bx,by);
+        ctx2d.lineTo(bx+(tx-bx)*0.5+rand(-8,8), by+(ty-by)*0.5+rand(-8,8));
+        ctx2d.lineTo(tx,ty);
+        ctx2d.stroke();
+      }
+    }
+  }
+  ctx2d.restore();
+}
+
+// 별(고정 배치, 매 프레임 재계산하지 않도록 1회 생성)
+const STARS = Array.from({length:50}, ()=>({x:rand(0,W), y:rand(0,H), r:rand(0.5,1.6), tw:rand(0,10)}));
+// 사후세계의 성소 분위기를 위한 배경 장식(고정 배치)
+const SOUL_MOTES = Array.from({length:26}, ()=>({
+  x:rand(0,W), y:rand(0,H), speed:rand(5,14), size:rand(1,2.4), phase:rand(0,10), drift:rand(-6,6)
+}));
+const RUIN_PILLARS = [
+  { x:58,  h:260, w:26, broken:0.2,  side:-1 },
+  { x:150, h:190, w:20, broken:0.55, side:-1 },
+  { x:902, h:260, w:26, broken:0.15, side:1 },
+  { x:812, h:195, w:20, broken:0.6,  side:1 },
+];
+
+function updateSoulMotes(dt){
+  for (const m of SOUL_MOTES){
+    m.y -= m.speed*dt;
+    m.x += Math.sin(elapsed*0.6+m.phase)*m.drift*dt;
+    if (m.y < -10){ m.y = H+10; m.x = rand(0,W); }
+  }
+}
+
+// 무너진 사원 기둥(성소의 폐허) — 화면 좌우 여백에 실루엣으로 배치
+function drawRuinPillars(){
+  for (const p of RUIN_PILLARS){
+    const top = H - p.h;
+    ctx2d.fillStyle = "rgba(15,18,32,0.9)";
+    ctx2d.beginPath();
+    ctx2d.moveTo(p.x-p.w/2, H+4);
+    ctx2d.lineTo(p.x-p.w/2, top+p.w*0.6);
+    ctx2d.lineTo(p.x-p.w/2+p.w*p.broken*0.5, top);
+    ctx2d.lineTo(p.x+p.w/2, top+p.w*0.3);
+    ctx2d.lineTo(p.x+p.w/2, H+4);
+    ctx2d.closePath(); ctx2d.fill();
+    // 달빛이 스치는 가장자리(림 라이트)
+    ctx2d.strokeStyle = `rgba(160,180,230,${0.22+0.06*Math.sin(elapsed*0.8)})`;
+    ctx2d.lineWidth = 1.5;
+    ctx2d.beginPath();
+    ctx2d.moveTo(p.x+p.side*p.w/2, top+p.w*0.4);
+    ctx2d.lineTo(p.x+p.side*p.w/2, H+4);
+    ctx2d.stroke();
+    // 기둥 갈라진 홈 장식
+    ctx2d.strokeStyle = "rgba(60,70,110,0.25)";
+    for (let i=1;i<4;i++){
+      const yy = top + p.w*0.7 + (H-4-(top+p.w*0.7))*i/4;
+      ctx2d.beginPath(); ctx2d.moveTo(p.x-p.w/2+2, yy); ctx2d.lineTo(p.x+p.w/2-2, yy); ctx2d.stroke();
+    }
+  }
+}
+
+// 성소 입구의 부서진 아치(사후세계로 향하는 문) — 대신전 정면의 출입구로 배치
+function drawGateArch(){
+  const cx=W/2, topY=96, spanX=52, archH=70;
+  ctx2d.save();
+  ctx2d.strokeStyle = "rgba(120,140,190,0.32)";
+  ctx2d.lineWidth = 7;
+  ctx2d.beginPath();
+  ctx2d.moveTo(cx-spanX, topY+archH);
+  ctx2d.lineTo(cx-spanX, topY+22);
+  ctx2d.quadraticCurveTo(cx-spanX, topY-14, cx, topY-14);
+  ctx2d.quadraticCurveTo(cx+spanX, topY-14, cx+spanX, topY+22);
+  ctx2d.lineTo(cx+spanX, topY+archH);
+  ctx2d.stroke();
+  // 문 안쪽에서 새어나오는 은은한 빛
+  const g = ctx2d.createRadialGradient(cx,topY+30,4, cx,topY+30,140);
+  g.addColorStop(0, `rgba(160,220,255,${0.22+0.06*Math.sin(elapsed*0.5)})`);
+  g.addColorStop(1, "rgba(160,220,255,0)");
+  ctx2d.fillStyle = g;
+  ctx2d.fillRect(cx-spanX-30, topY-40, (spanX+30)*2, archH+90);
+  ctx2d.restore();
+}
+
+function drawSoulMotes(){
+  for (const m of SOUL_MOTES){
+    const flicker = 0.35+0.4*Math.sin(elapsed*1.2+m.phase);
+    ctx2d.fillStyle = `rgba(190,230,255,${Math.max(0,flicker)})`;
+    ctx2d.beginPath(); ctx2d.arc(m.x, m.y, m.size, 0, Math.PI*2); ctx2d.fill();
+  }
+}
+
+// ---- 천국의 경기장(하늘·구름·떠 있는 섬·관중석) ----
+// 하늘: 검은 우주가 아니라 사후세계 황혼~여명의 하늘빛 그라디언트
+function drawSky(){
+  const g = ctx2d.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,    "#0b0e20");
+  g.addColorStop(0.30, "#1a2148");
+  g.addColorStop(0.52, "#3a3468");
+  g.addColorStop(0.70, "#6c4f74");
+  g.addColorStop(0.85, "#a9765f");
+  g.addColorStop(1,    "#171426");
+  ctx2d.fillStyle = g;
+  ctx2d.fillRect(0,0,W,H);
+  // 하늘을 가로지르는 성스러운 빛줄기
+  for (let i=0;i<2;i++){
+    const ang = -0.5 + i*0.35 + Math.sin(elapsed*0.05+i)*0.03;
+    const cx = W*0.3 + i*W*0.5;
+    ctx2d.save();
+    ctx2d.globalAlpha = 0.05;
+    ctx2d.translate(cx, -40);
+    ctx2d.rotate(ang);
+    const lg = ctx2d.createLinearGradient(0,0,0,700);
+    lg.addColorStop(0,"rgba(255,235,190,0.9)");
+    lg.addColorStop(1,"rgba(255,235,190,0)");
+    ctx2d.fillStyle = lg;
+    ctx2d.fillRect(-70,0,140,700);
+    ctx2d.restore();
+  }
+  // 3페이즈(완전 타락)엔 하늘 자체가 이따금 핏빛 번개로 번쩍인다
+  if ((bossPhase||1) === 3){
+    const cyc = elapsed % 2.4;
+    if (cyc < 0.09){
+      ctx2d.save();
+      ctx2d.globalAlpha = (1 - cyc/0.09) * 0.22;
+      ctx2d.fillStyle = "#ff3b4d";
+      ctx2d.fillRect(0,0,W,H*0.5);
+      ctx2d.restore();
+    }
+  }
+}
+
+const CLOUDS = Array.from({length:10}, ()=>({
+  x:rand(0,W), y:rand(30,230), scale:rand(0.5,1.5), speed:rand(2,7), op:rand(0.08,0.2)
+}));
+function drawClouds(){
+  for (const c of CLOUDS){
+    const x = ((c.x + elapsed*c.speed) % (W+300)) - 150;
+    ctx2d.save();
+    ctx2d.globalAlpha = c.op;
+    ctx2d.fillStyle = "#d8def5";
+    for (let i=0;i<3;i++){
+      ctx2d.beginPath();
+      ctx2d.ellipse(x+i*26*c.scale, c.y+Math.sin(i)*4*c.scale, 34*c.scale, 13*c.scale, 0,0,Math.PI*2);
+      ctx2d.fill();
+    }
+    ctx2d.restore();
+  }
+}
+
+const SKY_ISLANDS = [
+  { x:130, y:95, scale:1.05, speed:0.05, phase:0 },
+  { x:840, y:70, scale:0.7,  speed:0.04, phase:2.4 },
+  { x:490, y:48, scale:0.5,  speed:0.06, phase:5.1 },
+];
+function drawSkyIslands(){
+  for (const isl of SKY_ISLANDS){
+    const x = isl.x + Math.sin(elapsed*isl.speed+isl.phase)*10;
+    const y = isl.y;
+    const s = isl.scale;
+    ctx2d.save();
+    ctx2d.globalAlpha = 0.5;
+    const g = ctx2d.createRadialGradient(x,y+18*s,2, x,y+18*s,64*s);
+    g.addColorStop(0,"rgba(255,225,175,0.32)");
+    g.addColorStop(1,"rgba(255,225,175,0)");
+    ctx2d.fillStyle = g;
+    ctx2d.beginPath(); ctx2d.arc(x,y+18*s,64*s,0,Math.PI*2); ctx2d.fill();
+    ctx2d.globalAlpha = 0.75;
+    ctx2d.fillStyle = "#2c2748";
+    ctx2d.beginPath();
+    ctx2d.moveTo(x-40*s,y);
+    ctx2d.lineTo(x-24*s,y+16*s);
+    ctx2d.lineTo(x+30*s,y+14*s);
+    ctx2d.lineTo(x+42*s,y-2*s);
+    ctx2d.lineTo(x+10*s,y-10*s);
+    ctx2d.closePath(); ctx2d.fill();
+    // 섬 위에 남은 작은 신전 실루엣
+    ctx2d.fillStyle = "#3c3562";
+    for (let i=-1;i<=1;i++){
+      ctx2d.fillRect(x+i*11*s-2*s, y-10*s-13*s, 3.5*s, 13*s);
+    }
+    ctx2d.fillRect(x-15*s, y-10*s-16*s, 30*s, 3.5*s);
+    ctx2d.restore();
+  }
+}
+
+// 성소 외곽의 결정체(크리스탈) 첨탑 — 참고 이미지의 '수정 첨탑 지대' 재현
+const CRYSTAL_SPIRES = [
+  { x:36,  h:175, w:32, tilt:-0.07, hue:"#7fd8ff" },
+  { x:88,  h:112, w:22, tilt:0.06,  hue:"#b58cff" },
+  { x:128, h:70,  w:16, tilt:-0.1,  hue:"#7fd8ff" },
+  { x:872, h:150, w:28, tilt:0.05,  hue:"#7fd8ff" },
+  { x:924, h:105, w:20, tilt:-0.05, hue:"#b58cff" },
+  { x:836, h:66,  w:15, tilt:0.09,  hue:"#b58cff" },
+];
+function drawCrystalSpires(){
+  for (const c of CRYSTAL_SPIRES){
+    const baseY = H - 30;
+    ctx2d.save();
+    ctx2d.translate(c.x, baseY);
+    ctx2d.rotate(c.tilt);
+    const g = ctx2d.createLinearGradient(0,-c.h,0,0);
+    g.addColorStop(0, c.hue);
+    g.addColorStop(0.5, "rgba(255,255,255,0.5)");
+    g.addColorStop(1, "rgba(20,30,50,0.6)");
+    ctx2d.globalAlpha = 0.5;
+    ctx2d.fillStyle = g;
+    ctx2d.beginPath();
+    ctx2d.moveTo(-c.w/2, 0);
+    ctx2d.lineTo(-c.w*0.14, -c.h*0.7);
+    ctx2d.lineTo(0, -c.h);
+    ctx2d.lineTo(c.w*0.18, -c.h*0.62);
+    ctx2d.lineTo(c.w/2, 0);
+    ctx2d.closePath(); ctx2d.fill();
+    ctx2d.globalAlpha = 0.45+0.3*Math.sin(elapsed*1.4+c.x);
+    ctx2d.strokeStyle = "rgba(255,255,255,0.75)";
+    ctx2d.lineWidth = 1;
+    ctx2d.beginPath(); ctx2d.moveTo(0,-c.h*0.15); ctx2d.lineTo(0,-c.h*0.85); ctx2d.stroke();
+    ctx2d.restore();
+  }
+}
+
+// 경기장을 둘러싼 성소의 호수(반사되는 잔물결) — 콜로세움 단 바깥 테두리를 감싼다
+function drawMoat(cx,cy){
+  const rIn=400, rOut=432;
+  const ph = bossPhase||1;
+  const moatTint = ph===3 ? "120,40,60" : ph===2 ? "90,70,150" : "70,120,170";
+  ctx2d.save();
+  const g = ctx2d.createRadialGradient(cx,cy,rIn, cx,cy,rOut);
+  g.addColorStop(0, `rgba(${moatTint},0.5)`);
+  g.addColorStop(1, `rgba(${moatTint},0.12)`);
+  ctx2d.fillStyle = g;
+  ctx2d.beginPath();
+  ctx2d.arc(cx,cy,rOut,0,Math.PI*2);
+  ctx2d.arc(cx,cy,rIn,0,Math.PI*2,true);
+  ctx2d.fill();
+  ctx2d.strokeStyle = "rgba(210,235,255,0.3)";
+  ctx2d.lineWidth = 1;
+  for (let i=0;i<28;i++){
+    const a = i/28*Math.PI*2;
+    const rr = rIn + 6 + ((i*13 + elapsed*14) % (rOut-rIn-10));
+    ctx2d.beginPath();
+    ctx2d.arc(cx,cy,rr,a,a+0.05);
+    ctx2d.stroke();
+  }
+  for (let i=0;i<12;i++){
+    const a = i/12*Math.PI*2 + elapsed*0.1;
+    const rr = rIn + 5 + (i%3)*9;
+    ctx2d.globalAlpha = 0.35+0.35*Math.sin(elapsed*2+i);
+    ctx2d.fillStyle = "#eaf6ff";
+    ctx2d.beginPath(); ctx2d.arc(cx+Math.cos(a)*rr, cy+Math.sin(a)*rr, 1.2, 0, Math.PI*2); ctx2d.fill();
+  }
+  ctx2d.restore();
+}
+
+// 호수가에 늘어선 정원(작은 나무 실루엣 + 등불) — 참고 이미지의 '등불 정원' 재현
+const GARDEN_LANTERNS = Array.from({length:12}, (_,i)=>({
+  a: (i/12)*Math.PI*2 + rand(-0.12,0.12),
+  r: rand(412,428),
+  h: rand(18,32),
+  flicker: rand(0,10)
+}));
+function drawGardenLanterns(cx,cy){
+  for (const g of GARDEN_LANTERNS){
+    const x = cx+Math.cos(g.a)*g.r, y = cy+Math.sin(g.a)*g.r;
+    ctx2d.fillStyle = "rgba(10,14,26,0.85)";
+    ctx2d.beginPath();
+    ctx2d.moveTo(x-2,y+5); ctx2d.lineTo(x-2,y-g.h*0.35); ctx2d.lineTo(x+2,y-g.h*0.35); ctx2d.lineTo(x+2,y+5);
+    ctx2d.closePath(); ctx2d.fill();
+    ctx2d.beginPath(); ctx2d.arc(x, y-g.h*0.6, g.h*0.4, 0, Math.PI*2); ctx2d.fill();
+    const flick = 0.5+0.4*Math.sin(elapsed*2+g.flicker);
+    const lg = ctx2d.createRadialGradient(x,y-g.h*0.15,0, x,y-g.h*0.15,13);
+    lg.addColorStop(0, `rgba(255,214,140,${0.7*flick})`);
+    lg.addColorStop(1, "rgba(255,214,140,0)");
+    ctx2d.fillStyle = lg;
+    ctx2d.beginPath(); ctx2d.arc(x,y-g.h*0.15,13,0,Math.PI*2); ctx2d.fill();
+    ctx2d.fillStyle = `rgba(255,224,170,${0.85*flick})`;
+    ctx2d.beginPath(); ctx2d.arc(x,y-g.h*0.15,2,0,Math.PI*2); ctx2d.fill();
+  }
+}
+
+// 성소 중심에 우뚝 선 대신전(거대한 돔·첨탑) — 참고 이미지의 '천공의 대성소' 재현
+// 창과 첨탑 보주의 빛깔은 보스의 타락 단계를 그대로 비춘다(청록 성소빛 → 자주빛 → 핏빛)
+function drawGrandTemple(){
+  const cx=W/2;
+  const ph = bossPhase||1;
+  const tint = ph===3 ? "255,90,90" : ph===2 ? "190,150,255" : "180,225,255";
+  ctx2d.save();
+  for (const side of [-1,1]){
+    const tx = cx + side*146;
+    ctx2d.fillStyle = "rgba(17,21,40,0.92)";
+    ctx2d.beginPath();
+    ctx2d.moveTo(tx-15, 168);
+    ctx2d.lineTo(tx-15, 58);
+    ctx2d.lineTo(tx, 22);
+    ctx2d.lineTo(tx+15, 58);
+    ctx2d.lineTo(tx+15, 168);
+    ctx2d.closePath(); ctx2d.fill();
+    ctx2d.fillStyle = `rgba(${tint},${0.35+0.15*Math.sin(elapsed*0.9+side)})`;
+    ctx2d.beginPath(); ctx2d.arc(tx, 78, 4, 0, Math.PI*2); ctx2d.fill();
+    ctx2d.fillRect(tx-2.2, 96, 4.4, 13);
+  }
+  ctx2d.fillStyle = "rgba(19,23,44,0.92)";
+  ctx2d.beginPath();
+  ctx2d.moveTo(cx-124, 170);
+  ctx2d.lineTo(cx-124, 70);
+  ctx2d.lineTo(cx+124, 70);
+  ctx2d.lineTo(cx+124, 170);
+  ctx2d.closePath(); ctx2d.fill();
+  ctx2d.beginPath();
+  ctx2d.ellipse(cx, 70, 90, 46, 0, Math.PI, Math.PI*2);
+  ctx2d.closePath(); ctx2d.fill();
+  ctx2d.beginPath();
+  ctx2d.moveTo(cx-9, 30); ctx2d.lineTo(cx, -22); ctx2d.lineTo(cx+9, 30);
+  ctx2d.closePath(); ctx2d.fill();
+  ctx2d.save();
+  ctx2d.globalAlpha = 0.35;
+  ctx2d.fillStyle = `rgba(${tint},0.6)`;
+  ctx2d.beginPath(); ctx2d.arc(cx,-22,12,0,Math.PI*2); ctx2d.fill();
+  ctx2d.restore();
+  ctx2d.fillStyle = `rgba(${tint},${0.55+0.3*Math.sin(elapsed*1.6)})`;
+  ctx2d.beginPath(); ctx2d.arc(cx,-22,5,0,Math.PI*2); ctx2d.fill();
+  ctx2d.strokeStyle = "rgba(255,214,140,0.4)"; ctx2d.lineWidth = 1.5;
+  ctx2d.beginPath(); ctx2d.ellipse(cx, 70, 90, 46, 0, Math.PI, Math.PI*2); ctx2d.stroke();
+  ctx2d.save();
+  ctx2d.translate(cx, 48);
+  const rw = 12;
+  for (let i=0;i<8;i++){
+    ctx2d.rotate(Math.PI/4);
+    ctx2d.fillStyle = i%2===0 ? "rgba(140,210,255,0.45)" : "rgba(200,160,255,0.38)";
+    ctx2d.beginPath();
+    ctx2d.moveTo(0,0); ctx2d.arc(0,0,rw,-Math.PI/9,Math.PI/9); ctx2d.closePath(); ctx2d.fill();
+  }
+  ctx2d.strokeStyle="rgba(255,230,180,0.55)"; ctx2d.lineWidth=1.2;
+  ctx2d.beginPath(); ctx2d.arc(0,0,rw,0,Math.PI*2); ctx2d.stroke();
+  ctx2d.restore();
+  ctx2d.restore();
+}
+
+// 경기장을 감싸는 거대한 관중석(원형 콜로세움 단) — 평평한 원 하나였던 배경을
+// "장소"처럼 느끼도록 겹겹의 단과 아치 장식으로 대체
+function drawColiseumTiers(cx,cy){
+  // 실제 전투 공간(대좌, 반지름 260)과 헷갈리지 않도록, 관중석은 같은 중심의
+  // "완전한 동심원"으로만 그려 대좌 바깥 경계가 한눈에 또렷이 구분되게 한다.
+  // (원이 아니라 타원으로 겹치면 뾰족한 렌즈 모양이 생겨 경계가 애매해지므로 사용하지 않음)
+  const tiers = [
+    { r:400, col:"#0e1122" },
+    { r:352, col:"#12162a" },
+    { r:308, col:"#161c34" },
+    { r:272, col:"#1a2140" },
+  ];
+  for (const t of tiers){
+    ctx2d.fillStyle = t.col;
+    ctx2d.beginPath(); ctx2d.arc(cx,cy,t.r,0,Math.PI*2); ctx2d.fill();
+  }
+  // 관중석 단마다 새겨진 기둥/좌석 눈금(가장 바깥 두 단에만, 대좌와 가까운 안쪽 단은 비워 구분감을 줌)
+  ctx2d.strokeStyle = "rgba(170,180,225,0.18)";
+  ctx2d.lineWidth = 2;
+  for (const rr of [400, 352]){
+    for (let i=0;i<36;i++){
+      const a = i/36*Math.PI*2;
+      const x1 = cx+Math.cos(a)*rr*0.94, y1=cy+Math.sin(a)*rr*0.94;
+      const x2 = cx+Math.cos(a)*rr*0.995, y2=cy+Math.sin(a)*rr*0.995;
+      ctx2d.beginPath(); ctx2d.moveTo(x1,y1); ctx2d.lineTo(x2,y2); ctx2d.stroke();
+    }
+  }
+  ctx2d.lineWidth = 1;
+}
+
+function drawArenaFloor(){
+  const cx=W/2, cy=H/2+10, R=260;
+  drawSky();
+  drawSkyIslands();
+  drawClouds();
+  drawCrystalSpires();
+  // 별(하늘 위쪽 어두운 영역에서만 은은히)
+  ctx2d.fillStyle = "rgba(255,255,255,0.5)";
+  for (const s of STARS){
+    if (s.y > 260) continue;
+    ctx2d.globalAlpha = (0.3+0.3*Math.sin(elapsed*1.5+s.tw)) * (1-s.y/260);
+    ctx2d.beginPath(); ctx2d.arc(s.x,s.y,s.r,0,Math.PI*2); ctx2d.fill();
+  }
+  ctx2d.globalAlpha = 1;
+  drawColiseumTiers(cx,cy);
+  drawMoat(cx,cy);
+  drawGardenLanterns(cx,cy);
+  drawGrandTemple();
+  drawGateArch();
+  drawRuinPillars();
+  // 대리석 원형 승천 대좌(경기장 바닥) — 은은한 광택이 도는 대리석 그라디언트
+  const floorG = ctx2d.createRadialGradient(cx,cy-R*0.3,10, cx,cy,R);
+  floorG.addColorStop(0, "#2a3050");
+  floorG.addColorStop(0.55,"#1c2038");
+  floorG.addColorStop(1, "#12142400");
+  ctx2d.fillStyle = "#171a2c";
+  ctx2d.beginPath(); ctx2d.arc(cx,cy,R,0,Math.PI*2); ctx2d.fill();
+  ctx2d.fillStyle = floorG;
+  ctx2d.beginPath(); ctx2d.arc(cx,cy,R,0,Math.PI*2); ctx2d.fill();
+  // 경기장 경계(대결이 벌어지는 공간의 끝) — 관중석과 확실히 구분되도록 밝고 두껍게
+  ctx2d.save();
+  ctx2d.shadowColor = "rgba(220,230,255,0.55)"; ctx2d.shadowBlur = 10;
+  ctx2d.strokeStyle = "rgba(225,232,255,0.85)"; ctx2d.lineWidth = 4;
+  ctx2d.beginPath(); ctx2d.arc(cx,cy,R,0,Math.PI*2); ctx2d.stroke();
+  ctx2d.restore();
+  ctx2d.strokeStyle = "rgba(255,222,160,0.4)"; ctx2d.lineWidth = 1.5;
+  ctx2d.beginPath(); ctx2d.arc(cx,cy,R+5,0,Math.PI*2); ctx2d.stroke();
+  ctx2d.lineWidth = 1;
+  for (const rr of [R*0.68, R*0.36]){
+    ctx2d.strokeStyle = "rgba(200,190,255,0.22)";
+    ctx2d.beginPath(); ctx2d.arc(cx,cy,rr,0,Math.PI*2); ctx2d.stroke();
+  }
+  ctx2d.strokeStyle = "rgba(120,130,190,0.18)";
+  for (let i=0;i<16;i++){
+    const a = i/16*Math.PI*2;
+    ctx2d.beginPath(); ctx2d.moveTo(cx+Math.cos(a)*R*0.36, cy+Math.sin(a)*R*0.36);
+    ctx2d.lineTo(cx+Math.cos(a)*R, cy+Math.sin(a)*R); ctx2d.stroke();
+  }
+  // 금빛 룬 눈금(외곽)
+  ctx2d.strokeStyle = "rgba(255,214,140,0.55)";
+  for (let i=0;i<24;i++){
+    const a = i/24*Math.PI*2;
+    ctx2d.beginPath();
+    ctx2d.moveTo(cx+Math.cos(a)*R*0.94, cy+Math.sin(a)*R*0.94);
+    ctx2d.lineTo(cx+Math.cos(a)*R*1.0, cy+Math.sin(a)*R*1.0);
+    ctx2d.stroke();
+  }
+  // 떠도는 영혼(성소를 감도는 죽은 이들의 빛)
+  drawSoulMotes();
+}
+
+function drawVignette(){
+  const cx=W/2, cy=H/2;
+  const tint = bossPhase===3 ? "rgba(255,70,60,0.22)" : bossPhase===2 ? "rgba(150,80,220,0.14)" : "rgba(94,225,192,0.10)";
+  const g = ctx2d.createRadialGradient(cx,cy,120, cx,cy,420);
+  g.addColorStop(0,"rgba(0,0,0,0)");
+  g.addColorStop(1,tint);
+  ctx2d.fillStyle = g;
+  ctx2d.fillRect(0,0,W,H);
+}
+
+function drawNoGoX(x,y,size,alpha){
+  ctx2d.save();
+  ctx2d.globalAlpha = alpha==null?0.85:alpha;
+  ctx2d.strokeStyle = "#ff3b3b"; ctx2d.lineWidth = 3;
+  ctx2d.beginPath();
+  ctx2d.moveTo(x-size,y-size); ctx2d.lineTo(x+size,y+size);
+  ctx2d.moveTo(x+size,y-size); ctx2d.lineTo(x-size,y+size);
+  ctx2d.stroke();
+  ctx2d.restore();
+}
+
+function drawBolt(x1,y1,x2,y2,color){
+  const segs = 4;
+  ctx2d.save();
+  ctx2d.strokeStyle = color;
+  ctx2d.lineWidth = 2.4;
+  ctx2d.beginPath(); ctx2d.moveTo(x1,y1);
+  for (let i=1;i<segs;i++){
+    const t=i/segs;
+    const mx=x1+(x2-x1)*t, my=y1+(y2-y1)*t;
+    const nx=-(y2-y1), ny=(x2-x1); const nl=Math.hypot(nx,ny)||1;
+    const off=rand(-8,8);
+    ctx2d.lineTo(mx+(nx/nl)*off, my+(ny/nl)*off);
+  }
+  ctx2d.lineTo(x2,y2);
+  ctx2d.stroke();
+  ctx2d.lineWidth = 1;
+  ctx2d.restore();
+}
+
+function render(){
+  ctx2d.clearRect(0,0,W,H);
+  ctx2d.save();
+  if (shakeTime > 0){
+    const s = shakeMag * Math.min(1, shakeTime*3);
+    ctx2d.translate(rand(-s,s), rand(-s,s));
+  }
+  drawArenaFloor(); // 하늘 그라디언트가 배경 전체를 채운다
+
+  if (phase==="playing" || phase==="paused"){
+    drawVignette();
+    // 3페이즈: 안전 링 밖은 붕괴한 공허로 표시, 경계에는 NO-GO 표시
+    if (bossPhase === 3){
+      ctx2d.save();
+      ctx2d.beginPath();
+      ctx2d.rect(0,0,W,H);
+      ctx2d.arc(boss.x,boss.y,SAFE_RING_RADIUS,0,Math.PI*2,true);
+      ctx2d.clip("evenodd");
+      ctx2d.fillStyle = "rgba(2,2,10,0.78)";
+      ctx2d.fillRect(0,0,W,H);
+      ctx2d.restore();
+      ctx2d.strokeStyle = "rgba(255,93,138,0.7)"; ctx2d.lineWidth = 2;
+      ctx2d.beginPath(); ctx2d.arc(boss.x,boss.y,SAFE_RING_RADIUS,0,Math.PI*2); ctx2d.stroke();
+      ctx2d.lineWidth = 1;
+      for (let i=0;i<8;i++){
+        const a = i/8*Math.PI*2 + elapsed*0.15;
+        drawNoGoX(boss.x+Math.cos(a)*SAFE_RING_RADIUS, boss.y+Math.sin(a)*SAFE_RING_RADIUS, 8, 0.8);
+      }
+    }
+
+    // 균열/장판(예고는 점선, 발동은 채움+NO-GO 표시)
+    for (const h of hazards){
+      if (h.telegraph){
+        ctx2d.strokeStyle = "rgba(80,200,230,0.7)";
+        ctx2d.setLineDash([4,4]);
+        ctx2d.beginPath(); ctx2d.arc(h.x,h.y,h.r,0,Math.PI*2); ctx2d.stroke();
+        ctx2d.setLineDash([]);
+      } else {
+        ctx2d.fillStyle = "rgba(20,80,120,0.4)";
+        ctx2d.beginPath(); ctx2d.arc(h.x,h.y,h.r,0,Math.PI*2); ctx2d.fill();
+        ctx2d.strokeStyle = "rgba(80,200,230,0.6)";
+        ctx2d.beginPath(); ctx2d.arc(h.x,h.y,h.r,0,Math.PI*2); ctx2d.stroke();
+        drawNoGoX(h.x, h.y, Math.max(6, h.r*0.32), 0.7);
+      }
+    }
+
+    // 보스 (페이즈가 오를수록 청록빛 성소색→자줏빛 오염→핏빛 완전 타락으로 오라 자체가 바뀐다)
+    const bossColor = bossPhase===3 ? "#5e1f3a" : bossPhase===2 ? "#4a3f7f" : "#2a6f8f";
+    const bossWingColor = bossPhase===3 ? "rgba(90,20,40,0.92)" : bossPhase===2 ? "rgba(70,50,110,0.88)" : "rgba(40,70,95,0.85)";
+    const bossGlowColor = bossPhase===3 ? "#ff5d5d" : bossPhase===2 ? "#b98cf0" : "#7fe8ff";
+    const bossWingScale = bossPhase===3 ? 1.35 : bossPhase===2 ? 1.14 : 1;
+    // 페이즈별로 색과 움직임이 완전히 달라지는 타락의 오라(1: 은은한 성소빛 → 2: 일렁이는 자주빛 스모크 → 3: 번개가 튀는 핏빛 격류)
+    drawBossCorruptionAura(boss.x, boss.y, boss.r, bossPhase);
+    // 회전하는 물결 고리(3페이즈일수록 빠르게, 오라 색에 맞춰 변화)
+    ctx2d.save();
+    ctx2d.strokeStyle = bossPhase===3 ? "rgba(255,110,110,0.5)" : bossPhase===2 ? "rgba(190,150,255,0.5)" : "rgba(120,220,255,0.45)";
+    ctx2d.setLineDash([6,5]);
+    ctx2d.lineDashOffset = -elapsed * (20 + bossPhase*20);
+    ctx2d.beginPath(); ctx2d.arc(boss.x,boss.y,boss.r*1.6,0,Math.PI*2); ctx2d.stroke();
+    ctx2d.setLineDash([]);
+    ctx2d.restore();
+    drawChibi(boss.x, boss.y, boss.r, bossColor, bossWingColor, true, bossWingScale,
+               bossPhase>=2?1:0, bossGlowColor, "boss", bossPhase);
+    // 훔친 물의 권능 — 보스 주변을 도는 물방울(페이즈가 오를수록 개수·격렬함 증가)
+    {
+      const shardCount = bossPhase===3?6:bossPhase===2?4:2;
+      for (let i=0;i<shardCount;i++){
+        const a = elapsed*0.9 + i/shardCount*Math.PI*2;
+        const orbitR = boss.r*1.9;
+        const sx = boss.x+Math.cos(a)*orbitR, sy = boss.y+Math.sin(a)*orbitR*0.6;
+        ctx2d.save();
+        ctx2d.translate(sx,sy); ctx2d.rotate(a*0.6+Math.PI/2);
+        ctx2d.fillStyle = "rgba(150,220,255,0.85)";
+        ctx2d.beginPath();
+        ctx2d.moveTo(0,-6); ctx2d.quadraticCurveTo(4,2,0,5); ctx2d.quadraticCurveTo(-4,2,0,-6);
+        ctx2d.closePath(); ctx2d.fill();
+        ctx2d.restore();
+      }
+    }
+    // 갑주 균열(페이즈가 오를수록 늘어남)
+    if (boss.cracks && boss.cracks.length){
+      ctx2d.strokeStyle = "rgba(10,20,35,0.85)";
+      for (const c of boss.cracks){
+        const x1 = boss.x+Math.cos(c.ang)*boss.r*0.2, y1 = boss.y+Math.sin(c.ang)*boss.r*0.2;
+        const x2 = boss.x+Math.cos(c.ang+c.spread)*boss.r*(0.6+c.len/boss.baseR*0.5);
+        const y2 = boss.y+Math.sin(c.ang+c.spread)*boss.r*(0.6+c.len/boss.baseR*0.5);
+        ctx2d.beginPath(); ctx2d.moveTo(x1,y1); ctx2d.lineTo(x2,y2); ctx2d.stroke();
+      }
+    }
+
+    // 몹(그림자 잔재)
+    for (const m of mobs){
+      ctx2d.globalAlpha = 0.3;
+      ctx2d.fillStyle = "#000814";
+      ctx2d.beginPath(); ctx2d.ellipse(m.x, m.y+m.r*1.1, m.r*0.9, m.r*0.35, 0, 0, Math.PI*2); ctx2d.fill();
+      ctx2d.globalAlpha = 1;
+      ctx2d.fillStyle = "#8f97c9";
+      ctx2d.beginPath(); ctx2d.arc(m.x,m.y,m.r,0,Math.PI*2); ctx2d.fill();
+    }
+
+    // 보스 탄막(물보라 / 격류 파편)
+    ctx2d.fillStyle = bossPhase>=2 ? "#7fe0ff" : "#bfe9f7";
+    for (const b of bullets){
+      ctx2d.beginPath(); ctx2d.arc(b.x,b.y,b.r,0,Math.PI*2); ctx2d.fill();
+    }
+
+    // 플레이어 공격 범위(레벨업으로 사거리가 늘어난 만큼 커진다)
+    ctx2d.strokeStyle = "rgba(94,225,192,0.25)";
+    ctx2d.beginPath(); ctx2d.arc(player.x,player.y,player.range,0,Math.PI*2); ctx2d.stroke();
+    // 공격 발동 순간 확장되는 링(공격 리듬을 눈으로 보여줌)
+    if (player.pulseFlash > 0){
+      const t = player.pulseFlash/0.18;
+      ctx2d.strokeStyle = `rgba(94,225,192,${0.5*t})`;
+      ctx2d.beginPath(); ctx2d.arc(player.x,player.y,player.range*(1-t*0.5),0,Math.PI*2); ctx2d.stroke();
+    }
+    // 뇌전의 성역(보호막) 표시
+    if (sanctuaryActive){
+      ctx2d.strokeStyle = "rgba(159,232,255,0.8)"; ctx2d.lineWidth = 3;
+      ctx2d.beginPath(); ctx2d.arc(player.x,player.y,player.r+8,0,Math.PI*2); ctx2d.stroke();
+      ctx2d.lineWidth = 1;
+    }
+    // 움직일 때 남는 잔상(질주감) — 방향키를 누르는 동안 옅어지는 궤적이 뒤따른다
+    for (const t of playerTrail){
+      const a = Math.max(0, t.life/0.22);
+      ctx2d.globalAlpha = a*0.22;
+      ctx2d.fillStyle = "#5ee1c0";
+      ctx2d.beginPath(); ctx2d.arc(t.x, t.y, player.r*0.75*a+2, 0, Math.PI*2); ctx2d.fill();
+    }
+    ctx2d.globalAlpha = 1;
+    // 플레이어 (폭풍의 천사장) — 레벨이 오를수록 날개가 커지고 오라/후광이 생겨 성장이 눈에 보인다
+    const pStage = level>=7?2:level>=4?1:0;
+    const pWingScale = 1 + Math.min(level-1,8)*0.06;
+    drawChibi(player.x, player.y, player.r, debuffActive?"#5ec8ff":"#eaf7f2",
+              "rgba(94,225,192,0.75)", false, pWingScale, pStage, "#5ee1c0", "player");
+    // 천공의 구체 — 레벨이 오를수록 궤도를 도는 빛의 구슬이 하나씩 늘어나 성장이 눈에 보인다
+    {
+      const orbCount = Math.min(4, Math.floor((level-1)/2));
+      for (let i=0;i<orbCount;i++){
+        const a = -elapsed*1.6 + i/Math.max(1,orbCount)*Math.PI*2;
+        const orbitR = player.r*2.1;
+        const ox = player.x+Math.cos(a)*orbitR, oy = player.y+Math.sin(a)*orbitR*0.55 - player.r*0.4;
+        ctx2d.save();
+        ctx2d.fillStyle = "rgba(255,233,168,0.95)";
+        ctx2d.shadowColor = "rgba(255,233,168,0.9)"; ctx2d.shadowBlur = 6;
+        ctx2d.beginPath(); ctx2d.arc(ox,oy,3,0,Math.PI*2); ctx2d.fill();
+        ctx2d.restore();
+      }
+    }
+    // 번개 이펙트(공격이 명중한 순간의 궤적)
+    for (const bl of bolts){
+      ctx2d.globalAlpha = Math.max(0, bl.life/0.18);
+      drawBolt(bl.x1,bl.y1,bl.x2,bl.y2,bl.color);
+      ctx2d.globalAlpha = 1;
+    }
+
+    // 레벨업 배너
+    if (levelBanner){
+      ctx2d.globalAlpha = Math.max(0, Math.min(1, levelBanner.life/1.2));
+      ctx2d.fillStyle = "#ffe9a8";
+      ctx2d.font = "bold 16px monospace";
+      ctx2d.textAlign = "center";
+      ctx2d.fillText(levelBanner.text, levelBanner.x, levelBanner.y - 26);
+      ctx2d.textAlign = "left";
+      ctx2d.globalAlpha = 1;
+    }
+
+    // 파티클(작은 보석 형태 — 명중/처치/레벨업 이펙트)
+    for (const p of particles){
+      ctx2d.save();
+      ctx2d.translate(p.x,p.y);
+      ctx2d.rotate(Math.PI/4);
+      ctx2d.fillStyle = p.color;
+      ctx2d.globalAlpha = Math.max(0,p.life/0.4);
+      ctx2d.fillRect(-2.6,-2.6,5.2,5.2);
+      ctx2d.restore();
+    }
+    ctx2d.globalAlpha = 1;
+
+    // 페이즈 전환 배너(화면 전체 색 플래시 + 큰 경고 문구) — 오라가 바뀌는 순간을 확실히 체감하도록
+    if (phaseBanner){
+      const t = Math.max(0, phaseBanner.life);
+      ctx2d.save();
+      ctx2d.globalAlpha = Math.min(0.32, t*0.5);
+      ctx2d.fillStyle = phaseBanner.color;
+      ctx2d.fillRect(0,0,W,H);
+      ctx2d.globalAlpha = Math.min(1, t*1.6);
+      ctx2d.textAlign = "center";
+      ctx2d.font = "bold 32px 'Malgun Gothic','Apple SD Gothic Neo',sans-serif";
+      ctx2d.shadowColor = phaseBanner.color; ctx2d.shadowBlur = 22;
+      ctx2d.fillStyle = "#fff8ee";
+      ctx2d.fillText(phaseBanner.text, W/2, H*0.34);
+      ctx2d.shadowBlur = 0;
+      ctx2d.textAlign = "left";
+      ctx2d.restore();
+    }
+  }
+  ctx2d.restore();
+}
+
+/* ---------- HUD 갱신 ---------- */
+const hudTime = document.getElementById("hud-time");
+const hudKills = document.getElementById("hud-kills");
+const hudBest = document.getElementById("hud-best");
+const hudLevel = document.getElementById("hud-level");
+const hpBar = document.getElementById("hp-bar");
+const xpBar = document.getElementById("xp-bar");
+const bossBar = document.getElementById("boss-bar");
+const statusTags = document.getElementById("status-tags");
+
+function updateHud(){
+  hudTime.textContent = phase==="playing"||phase==="paused" ? Math.max(0,(ROUND_TIME-elapsed)).toFixed(1) : "30.0";
+  hudKills.textContent = kills||0;
+  hudBest.textContent = save.highScore;
+  hudLevel.textContent = level||1;
+  hpBar.style.transform = `scaleX(${player? Math.max(0,player.hp/player.hpMax):1})`;
+  xpBar.style.transform = `scaleX(${xpNeed? Math.min(1,xp/xpNeed):0})`;
+  bossBar.style.transform = `scaleX(${boss? Math.max(0,boss.hp/boss.hpMax):1})`;
+  statusTags.innerHTML = "";
+  function tag(text){ const s=document.createElement("span"); s.className="status-tag"; s.textContent=text; statusTags.appendChild(s); }
+  if (phase==="playing" || phase==="paused"){
+    tag(bossPhase===1?"1페이즈 고요한 성소":bossPhase===2?"2페이즈 오염과 균열":"3페이즈 완전 붕괴");
+  }
+  if (debuffActive) tag("둔화 중");
+  if (sanctuaryActive) tag("보호막(뇌전의 성역)");
+  if (phase==="paused") tag("일시정지");
+}
+
+/* ---------- 메인 루프: rAF 하나만 계속 사용 (카드2, 10분 안정성) ---------- */
+function loop(ts){
+  if (!lastTs) lastTs = ts;
+  let dt = (ts-lastTs)/1000;
+  lastTs = ts;
+  dt = Math.min(dt, 0.05); // 탭 비활성 후 복귀 시 시간 점프 방지
+  updateSoulMotes(dt); // 대기/일시정지 화면에서도 성소의 분위기가 계속 살아있도록
+  update(dt);
+  render();
+  updateHud();
+  rafId = requestAnimationFrame(loop);
+}
+rafId = requestAnimationFrame(loop);
+
+/* ---------- 카드3: 자동 시뮬레이터 (고정 타임스텝, 빠르게 다회 실행) ---------- */
+function simulateOneRound(spawnIntervalValue, seed, bossHpMul){
+  bossHpMul = bossHpMul || 1;
+  // 결정론적 봇: 보스 근처를 맴돌며 가장 가까운 몹을 피해 이동
+  let rngState = seed>>>0;
+  function rnd(){ rngState = (rngState*1664525+1013904223)>>>0; return rngState/4294967296; }
+  function randR(a,b){ return a+rnd()*(b-a); }
+
+  const P = { x:W/2, y:H-90, r:14, hp:130, hpMax:130, pulseCd:0, atk:PULSE_DAMAGE, range:PULSE_RADIUS, atkSpeedMul:1 };
+  let lv=1, simXp=0, simXpNeed=50;
+  const bossHpMaxScaled = Math.round(BOSS_HP_MAX*bossHpMul);
+  const B = { x:W/2, y:120, r:BOSS_RADIUS, hp:bossHpMaxScaled, hpMax:bossHpMaxScaled };
+  let M = [], BUL = [], HAZ = [];
+  let el=0, spawnT=0, debuffAct=false, debuffT=0, fired=new Set();
+  let bPhase=1, bAtkT=BOSS_ATTACK[1].interval, poolT=VOID_POOL.interval;
+  let whirlT=WHIRLWIND_INTERVAL, sancUsed=false, sancActive=false, sancT=0;
+  const dt = 1/60;
+  let killCount = 0, hitsTaken = 0;
+  const orbitDir = (seed%2===0) ? 1 : -1;
+
+  function distXY(ax,ay,bx,by){ return Math.hypot(ax-bx,ay-by); }
+  function dmgP(amount){ P.hp -= amount*(sancActive?SANCTUARY_DMG_MUL:1); if(P.hp<0)P.hp=0; }
+
+  while (true){
+    el += dt;
+
+    // 보스 페이즈 전환
+    {
+      const ratio = B.hp/B.hpMax;
+      let next = ratio<=PHASE3_RATIO?3 : ratio<=PHASE2_RATIO?2 : 1;
+      if (next !== bPhase){
+        bPhase = next; bAtkT = 0;
+        if (next===3) B.r = BOSS_RADIUS*1.18;
+        if (next===2){
+          for (let i=0;i<STATIC_HAZARD_COUNT;i++){
+            const ang=(i/STATIC_HAZARD_COUNT)*Math.PI*2+randR(0,1);
+            HAZ.push({x:W/2+Math.cos(ang)*180,y:H/2+Math.sin(ang)*140,r:STATIC_HAZARD_RADIUS,
+                      dps:VOID_POOL.dps*0.6,slow:0.7,telegraph:false,telegraphTimer:0,life:null});
+          }
+        }
+      }
+    }
+
+    for (const t of [DIFFICULTY.debuffEvery, DIFFICULTY.debuffEvery*2]){
+      if (el>=t && !fired.has(t)){ fired.add(t); debuffAct=true; debuffT=DIFFICULTY.debuffDuration; }
+    }
+    if (debuffAct){ debuffT-=dt; if(debuffT<=0) debuffAct=false; }
+
+    if (!sancUsed && P.hp/P.hpMax<=SANCTUARY_HP_RATIO){ sancUsed=true; sancActive=true; sancT=SANCTUARY_DURATION; }
+    if (sancActive){ sancT-=dt; if(sancT<=0) sancActive=false; }
+
+    let hazSlow = 1;
+    for (let i=HAZ.length-1;i>=0;i--){
+      const h=HAZ[i];
+      if (h.telegraph){ h.telegraphTimer-=dt; if(h.telegraphTimer<=0) h.telegraph=false; }
+      else {
+        if (distXY(P.x,P.y,h.x,h.y)<=h.r){ dmgP(h.dps*dt); hazSlow=Math.min(hazSlow,h.slow); hitsTaken+=0; }
+        if (h.life!==null){ h.life-=dt; if(h.life<=0){ HAZ.splice(i,1); continue; } }
+      }
+    }
+
+    // 봇 이동: 위협(몹/탄막/장판)이 있으면 회피를 우선, 없으면 보스 사거리 유지+궤도
+    const bossDist = distXY(P.x,P.y,B.x,B.y);
+    const idealMin = P.r+B.r+10, idealMax = P.range-10;
+    let dx, dy;
+    if (bossDist < idealMin){ dx = P.x-B.x; dy = P.y-B.y; }
+    else if (bossDist > idealMax){ dx = B.x-P.x; dy = B.y-P.y; }
+    else { dx = -(P.y-B.y)*orbitDir; dy = (P.x-B.x)*orbitDir; }
+    let avoidX=0, avoidY=0, threat=false;
+    let nearest=null, nd=Infinity;
+    for (const m of M){ const d=distXY(P.x,P.y,m.x,m.y); if(d<nd){nd=d;nearest=m;} }
+    if (nearest && nd < 26){ avoidX += P.x-nearest.x; avoidY += P.y-nearest.y; threat=true; }
+    for (const b of BUL){ const d=distXY(P.x,P.y,b.x,b.y); if (d<30){ avoidX += (P.x-b.x)*(1/(d||1)); avoidY += (P.y-b.y)*(1/(d||1)); threat=true; } }
+    for (const h of HAZ){ if(!h.telegraph && distXY(P.x,P.y,h.x,h.y)<=h.r+10){ avoidX += P.x-h.x; avoidY += P.y-h.y; threat=true; } }
+    if (threat){ dx = avoidX; dy = avoidY; }
+    dx += randR(-1,1)*45; dy += randR(-1,1)*45; // 사람처럼 약간의 반응 오차
+    const len=Math.hypot(dx,dy)||1;
+    const speedMul = (debuffAct?DIFFICULTY.debuffFactor:1) * hazSlow;
+    P.x += (dx/len)*PLAYER_SPEED*speedMul*dt;
+    P.y += (dy/len)*PLAYER_SPEED*speedMul*dt;
+    P.x = Math.max(P.r, Math.min(W-P.r, P.x));
+    P.y = Math.max(P.r, Math.min(H-P.r, P.y));
+    if (bPhase===3){
+      const dxr=P.x-B.x, dyr=P.y-B.y, dr=Math.hypot(dxr,dyr);
+      if (dr > SAFE_RING_RADIUS-P.r){ const k=(SAFE_RING_RADIUS-P.r)/(dr||1); P.x=B.x+dxr*k; P.y=B.y+dyr*k; }
+    }
+
+    spawnT -= dt*1000;
+    if (spawnT<=0 && M.length<MAX_MOBS){
+      spawnT = spawnIntervalValue;
+      const edge=Math.floor(randR(0,4)); let mx,my;
+      if(edge===0){mx=randR(0,W);my=-20;} else if(edge===1){mx=W+20;my=randR(0,H);}
+      else if(edge===2){mx=randR(0,W);my=H+20;} else {mx=-20;my=randR(0,H);}
+      M.push({x:mx,y:my,r:MOB_RADIUS,hp:MOB_HP,speed:randR(70,110),hitCd:0});
+    }
+    for (let i=M.length-1;i>=0;i--){
+      const m=M[i];
+      const ddx=P.x-m.x, ddy=P.y-m.y; const l2=Math.hypot(ddx,ddy)||1;
+      m.x+=(ddx/l2)*m.speed*dt; m.y+=(ddy/l2)*m.speed*dt;
+      m.hitCd-=dt;
+      if (distXY(P.x,P.y,m.x,m.y)<=P.r+m.r && m.hitCd<=0){ dmgP(MOB_CONTACT_DMG); m.hitCd=MOB_HIT_COOLDOWN; hitsTaken++; }
+      if (m.hp<=0){
+        M.splice(i,1); killCount++;
+        simXp += 10;
+        while (simXp >= simXpNeed){
+          simXp -= simXpNeed; lv++; simXpNeed = 50*lv;
+          P.atk += LEVEL_ATK_GROWTH; P.range += LEVEL_RANGE_GROWTH; P.hpMax += LEVEL_HP_GROWTH;
+          P.hp = Math.min(P.hpMax, P.hp + LEVEL_HEAL);
+          P.atkSpeedMul = Math.max(LEVEL_ATKSPEED_FLOOR, P.atkSpeedMul*LEVEL_ATKSPEED_MUL);
+        }
+      }
+    }
+    {
+      const ddx=P.x-B.x, ddy=P.y-B.y; const l2=Math.hypot(ddx,ddy)||1;
+      B.x+=(ddx/l2)*BOSS_SPEED*dt; B.y+=(ddy/l2)*BOSS_SPEED*dt;
+      if (distXY(P.x,P.y,B.x,B.y)<=P.r+B.r) dmgP(BOSS_CONTACT_DMG*dt);
+    }
+
+    // 보스 탄막/장판
+    bAtkT -= dt*1000;
+    if (bAtkT<=0){
+      const cfg = BOSS_ATTACK[bPhase];
+      if (BUL.length<MAX_BULLETS){
+        for (let i=0;i<cfg.count;i++){
+          const ang=(i/cfg.count)*Math.PI*2+randR(0,0.3);
+          BUL.push({x:B.x,y:B.y,vx:Math.cos(ang)*cfg.speed,vy:Math.sin(ang)*cfg.speed,r:cfg.r,dmg:cfg.dmg});
+        }
+      }
+      bAtkT = cfg.interval;
+    }
+    if (bPhase>=2){
+      poolT -= dt*1000;
+      if (poolT<=0){ HAZ.push({x:P.x,y:P.y,r:VOID_POOL.radius,dps:VOID_POOL.dps,slow:VOID_POOL.slow,telegraph:true,telegraphTimer:VOID_POOL.telegraph,life:VOID_POOL.life}); poolT=VOID_POOL.interval; }
+    }
+    for (let i=BUL.length-1;i>=0;i--){
+      const b=BUL[i];
+      b.x+=b.vx*dt; b.y+=b.vy*dt;
+      if (b.x<-40||b.x>W+40||b.y<-40||b.y>H+40){ BUL.splice(i,1); continue; }
+      if (distXY(P.x,P.y,b.x,b.y)<=P.r+b.r){ dmgP(b.dmg); hitsTaken++; BUL.splice(i,1); }
+    }
+
+    // 폭풍의 소용돌이(자동)
+    whirlT -= dt;
+    if (whirlT<=0){
+      for (const m of M){ if (distXY(P.x,P.y,m.x,m.y)<=WHIRLWIND_PULL_RADIUS){ m.x=P.x+(m.x-P.x)*(1-WHIRLWIND_PULL_AMOUNT); m.y=P.y+(m.y-P.y)*(1-WHIRLWIND_PULL_AMOUNT); } }
+      for (const m of M){ if (distXY(P.x,P.y,m.x,m.y)<=WHIRLWIND_BURST_RADIUS) m.hp -= P.atk*1.5; }
+      if (distXY(P.x,P.y,B.x,B.y)<=WHIRLWIND_BURST_RADIUS) B.hp = Math.max(0,B.hp-P.atk*1.5);
+      whirlT = WHIRLWIND_INTERVAL;
+    }
+
+    P.pulseCd -= dt;
+    if (P.pulseCd<=0){
+      P.pulseCd = PULSE_INTERVAL * P.atkSpeedMul;
+      for (const m of M){ if (distXY(P.x,P.y,m.x,m.y)<=P.range+m.r) m.hp -= P.atk; }
+      if (distXY(P.x,P.y,B.x,B.y)<=P.range+B.r) B.hp = Math.max(0,B.hp-P.atk);
+    }
+    if (P.hp<=0) return { outcome:"fail", reason:"체력 소진", time:+el.toFixed(1), kills:killCount, hitsTaken, hpLeft:0 };
+    if (B.hp<=0) return { outcome:"success", reason:"보스 처치", time:+el.toFixed(1), kills:killCount, hitsTaken, hpLeft:Math.round(P.hp) };
+    if (el>=ROUND_TIME) return { outcome:"fail", reason:"시간 초과", time:+el.toFixed(1), kills:killCount, hitsTaken, hpLeft:Math.round(Math.max(0,P.hp)) };
+  }
+}
+
+let simLog = [];
+function runSimBatch(label, spawnIntervalValue, n, bossHpMul){
+  for (let i=0;i<n;i++){
+    const r = simulateOneRound(spawnIntervalValue, Date.now()+i*7919+Math.floor(Math.random()*1000), bossHpMul);
+    simLog.push({ label, spawnIntervalValue, run:i+1, ...r });
+  }
+  renderSimTable();
+}
+function renderSimTable(){
+  const el = document.getElementById("sim-results");
+  if (simLog.length===0){ el.innerHTML=""; return; }
+  let rows = simLog.map(r=>`<tr><td>${r.label}</td><td>${r.spawnIntervalValue}</td><td>${r.run}</td><td>${r.outcome==="success"?"성공":"실패"}</td><td>${r.time}s</td><td>${r.kills}</td><td>${r.hitsTaken}</td></tr>`).join("");
+  function stats(arr, unit){
+    if (!arr.length) return "-";
+    const sorted=[...arr].sort((a,b)=>a-b);
+    const mid=sorted[Math.floor(sorted.length/2)];
+    return `중앙값 ${mid}${unit}, 범위 ${sorted[0]}~${sorted[sorted.length-1]}${unit}`;
+  }
+  const groups = {};
+  for (const r of simLog){ (groups[r.label] ||= []).push(r); }
+  let summary = Object.entries(groups).map(([label,arr])=>{
+    const kills = arr.map(r=>r.kills);
+    const hits = arr.map(r=>r.hitsTaken);
+    const succ = arr.filter(r=>r.outcome==="success").length;
+    return `<div>${label}: 성공 ${succ}/${arr.length} · 처치수 ${stats(kills,"")} · 피격횟수 ${stats(hits,"")}</div>`;
+  }).join("");
+  el.innerHTML = `<table><thead><tr><th>구간</th><th>스폰간격</th><th>회차</th><th>결과</th><th>소요</th><th>처치</th><th>피격</th></tr></thead><tbody>${rows}</tbody></table><div style="margin-top:6px;">${summary}</div>`;
+}
+document.getElementById("btn-sim-a").addEventListener("click", ()=>{
+  const v = parseInt(document.getElementById("sim-a").value,10)||1400;
+  const n = parseInt(document.getElementById("sim-n").value,10)||10;
+  runSimBatch("A(변경전)", v, n);
+});
+document.getElementById("btn-sim-b").addEventListener("click", ()=>{
+  const v = parseInt(document.getElementById("sim-b").value,10)||1000;
+  const n = parseInt(document.getElementById("sim-n").value,10)||10;
+  runSimBatch("B(변경후)", v, n);
+});
+document.getElementById("btn-sim-clear").addEventListener("click", ()=>{ simLog=[]; renderSimTable(); });
+document.getElementById("btn-sim-export").addEventListener("click", async ()=>{
+  const header = "구간\t스폰간격\t회차\t결과\t소요(s)\t처치\t피격";
+  const text = header + "\n" + simLog.map(r=>`${r.label}\t${r.spawnIntervalValue}\t${r.run}\t${r.outcome}\t${r.time}\t${r.kills}\t${r.hitsTaken}`).join("\n");
+  try{ await navigator.clipboard.writeText(text); alert("기록이 클립보드에 복사되었습니다."); }
+  catch(e){ prompt("복사에 실패했습니다. 아래 내용을 직접 복사하세요.", text); }
+});
+
+/* ---------- 저장값 테스트 도구 (카드4 증빙용) ---------- */
+document.getElementById("btn-save-clear").addEventListener("click", ()=>{
+  localStorage.removeItem(SAVE_KEY);
+  save = loadSave();
+  chkMute.checked = save.muted; chkMotion.checked = save.reducedMotion;
+  document.getElementById("save-view").textContent = "저장값을 비웠습니다 → 기본값으로 복구: "+JSON.stringify(save);
+  updateHud();
+});
+document.getElementById("btn-save-corrupt").addEventListener("click", ()=>{
+  localStorage.setItem(SAVE_KEY, "{ this is not valid json ::");
+  save = loadSave();
+  chkMute.checked = save.muted; chkMotion.checked = save.reducedMotion;
+  document.getElementById("save-view").textContent = "손상된 값을 넣고 다시 로드 → 기본값으로 복구: "+JSON.stringify(save);
+  updateHud();
+});
+document.getElementById("btn-save-show").addEventListener("click", ()=>{
+  document.getElementById("save-view").textContent = "localStorage 원문: "+localStorage.getItem(SAVE_KEY);
+});
+
+updateHud();
+
+// 내부 상태 점검용 (자동 테스트/디버그 전용, 게임 플레이에는 영향 없음)
+window.__debug = {
+  get phase(){ return phase; },
+  get elapsed(){ return elapsed; },
+  get kills(){ return kills; },
+  get player(){ return player; },
+  get pressed(){ return pressed; },
+  get simLog(){ return simLog; },
+  get mobsCount(){ return mobs ? mobs.length : 0; },
+  get particlesCount(){ return particles ? particles.length : 0; },
+  get bulletsCount(){ return bullets ? bullets.length : 0; },
+  get hazardsCount(){ return hazards ? hazards.length : 0; },
+  get bossPhase(){ return bossPhase; },
+  get bossHp(){ return boss ? boss.hp : null; },
+  get boss(){ return boss; },
+  setBossHp(v){ if (boss) boss.hp = v; }, // QA 전용: 페이즈 강제 확인용
+  forceXp(v){ gainXp(v); }, // QA 전용: 레벨업 강제 확인용
+  moveBoss(x,y){ if (boss){ boss.x=x; boss.y=y; } }, // QA 전용
+  loadSave, runSimBatch,
+};
+})();
+</script>
+</body>
+</html>
